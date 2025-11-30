@@ -1,0 +1,361 @@
+@page "/shared/{token}"
+@rendermode InteractiveServer
+@inject ISharedLinkService SharedLinkService
+@inject IFileStorageService FileStorageService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>مستند مشترك - @(sharedLink?.Document?.DocumentName ?? "جاري التحميل...")</PageTitle>
+
+<style>
+    .shared-document-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .document-preview {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 2rem;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .password-form {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+</style>
+
+<div class="container-fluid shared-document-container" dir="rtl">
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري التحقق من الرابط...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-exclamation-triangle text-danger fs-1 d-block mb-3"></i>
+                <h4 class="text-danger">@errorMessage</h4>
+                <p class="text-muted mt-3">الرابط غير صالح أو منتهي الصلاحية</p>
+            </div>
+        </div>
+    }
+    else if (sharedLink == null || sharedLink.Document == null)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-file-x text-warning fs-1 d-block mb-3"></i>
+                <h4>المستند غير موجود</h4>
+            </div>
+        </div>
+    }
+    else if (requiresPassword)
+    {
+        <!-- Password Form -->
+        <div class="card">
+            <div class="card-header text-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-lock me-2"></i>رابط محمي بكلمة مرور
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="password-form">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-file-earmark-text fs-1 text-primary d-block mb-2"></i>
+                        <h6>@sharedLink.Document.DocumentName</h6>
+                        <p class="text-muted small">أدخل كلمة المرور للوصول إلى المستند</p>
+                    </div>
+
+                    <EditForm Model="@passwordModel" OnValidSubmit="@HandlePasswordSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="alert alert-danger" role="alert" />
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label fw-bold">كلمة المرور</label>
+                            <InputText 
+                                id="password"
+                                type="password"
+                                class="form-control" 
+                                @bind-Value="passwordModel.Password" 
+                                placeholder="أدخل كلمة المرور"
+                                aria-label="كلمة مرور الرابط"
+                                aria-required="true" />
+                            <ValidationMessage For="@(() => passwordModel.Password)" />
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            class="btn btn-primary w-100" 
+                            disabled="@isValidating"
+                            aria-label="التحقق من كلمة المرور">
+                            @if (isValidating)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            <i class="bi bi-unlock me-2"></i>الوصول إلى المستند
+                        </button>
+                    </EditForm>
+
+                    @if (!string.IsNullOrEmpty(passwordError))
+                    {
+                        <div class="alert alert-danger mt-3" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@passwordError
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Document Display -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-text me-2"></i>@sharedLink.Document.DocumentName
+                    </h5>
+                    <span class="badge bg-info">مستند مشترك</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Document Info -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p><strong>النوع:</strong> @(sharedLink.Document.DocumentType ?? "غير محدد")</p>
+                        <p><strong>تاريخ الرفع:</strong> @sharedLink.Document.UploadedAt.ToString("yyyy-MM-dd")</p>
+                        @if (sharedLink.Document.UploadedByUser != null)
+                        {
+                            <p><strong>رافع المستند:</strong> @sharedLink.Document.UploadedByUser.FullName</p>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>تاريخ انتهاء الرابط:</strong> @sharedLink.ExpiresAt.ToString("yyyy-MM-dd HH:mm")</p>
+                        @if (sharedLink.MaxAccessCount.HasValue)
+                        {
+                            <p><strong>عدد مرات الوصول:</strong> @sharedLink.CurrentAccessCount / @sharedLink.MaxAccessCount.Value</p>
+                        }
+                        else
+                        {
+                            <p><strong>عدد مرات الوصول:</strong> @sharedLink.CurrentAccessCount (غير محدود)</p>
+                        }
+                    </div>
+                </div>
+
+                <!-- Download Button -->
+                <div class="text-center mb-4">
+                    <button 
+                        class="btn btn-primary btn-lg" 
+                        @onclick="DownloadDocument"
+                        disabled="@isDownloading"
+                        aria-label="تحميل المستند">
+                        @if (isDownloading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-download me-2"></i>
+                        }
+                        تحميل المستند
+                    </button>
+                </div>
+
+                <!-- Document Preview (if PDF or Image) -->
+                @if (IsPreviewable(sharedLink.Document.MimeType))
+                {
+                    <div class="document-preview">
+                        <div class="text-center">
+                            <i class="bi bi-file-earmark-pdf fs-1 text-danger d-block mb-3"></i>
+                            <p class="text-muted">معاينة المستند غير متاحة حالياً</p>
+                            <p class="small text-muted">يرجى تحميل الملف لعرضه</p>
+                        </div>
+                    </div>
+                }
+
+                <!-- Security Notice -->
+                <div class="alert alert-warning mt-4" role="alert">
+                    <i class="bi bi-shield-exclamation me-2"></i>
+                    <strong>تنبيه:</strong> هذا رابط مشترك. يرجى عدم مشاركته مع أشخاص غير مخولين.
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Token { get; set; } = string.Empty;
+
+    private SharedLink? sharedLink;
+    private bool isLoading = true;
+    private bool isValidating = false;
+    private bool isDownloading = false;
+    private bool requiresPassword = false;
+    private string? errorMessage;
+    private string? passwordError;
+
+    private PasswordModel passwordModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ValidateAndLoadLink();
+    }
+
+    private async Task ValidateAndLoadLink(string? password = null)
+    {
+        isLoading = true;
+        errorMessage = null;
+        passwordError = null;
+
+        try
+        {
+            var validationResult = await SharedLinkService.ValidateSharedLinkAsync(Token, password);
+
+            if (!validationResult.IsValid)
+            {
+                if (validationResult.Link != null && string.IsNullOrEmpty(password))
+                {
+                    // Link requires password
+                    requiresPassword = true;
+                    sharedLink = validationResult.Link;
+                }
+                else
+                {
+                    errorMessage = validationResult.ErrorMessage ?? "الرابط غير صالح";
+                }
+            }
+            else
+            {
+                sharedLink = validationResult.Link;
+                requiresPassword = false;
+
+                // Record access
+                if (sharedLink != null)
+                {
+                    var httpContext = HttpContextAccessor.HttpContext;
+                    var ipAddress = httpContext?.Connection?.RemoteIpAddress?.ToString();
+                    var userAgent = httpContext?.Request?.Headers["User-Agent"].ToString();
+
+                    await SharedLinkService.RecordAccessAsync(sharedLink.LinkId, ipAddress, userAgent);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل المستند: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandlePasswordSubmit()
+    {
+        isValidating = true;
+        passwordError = null;
+
+        try
+        {
+            await ValidateAndLoadLink(passwordModel.Password);
+            
+            if (requiresPassword)
+            {
+                passwordError = "كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.";
+            }
+        }
+        catch (Exception ex)
+        {
+            passwordError = $"حدث خطأ: {ex.Message}";
+        }
+        finally
+        {
+            isValidating = false;
+        }
+    }
+
+    private async Task DownloadDocument()
+    {
+        if (sharedLink?.Document == null)
+            return;
+
+        isDownloading = true;
+        errorMessage = null;
+
+        try
+        {
+            if (string.IsNullOrEmpty(sharedLink.Document.FilePath))
+            {
+                errorMessage = "مسار الملف غير موجود";
+                isDownloading = false;
+                return;
+            }
+
+            using var fileStream = await FileStorageService.GetFileAsync(sharedLink.Document.FilePath);
+            
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream);
+            var fileBytes = memoryStream.ToArray();
+
+            var fileName = sharedLink.Document.FileName ?? sharedLink.Document.DocumentName;
+            if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
+            {
+                fileName += ".pdf"; // Default extension
+            }
+
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(fileBytes));
+        }
+        catch (FileNotFoundException)
+        {
+            errorMessage = "الملف غير موجود في التخزين.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل الملف: {ex.Message}";
+        }
+        finally
+        {
+            isDownloading = false;
+        }
+    }
+
+    private bool IsPreviewable(string? mimeType)
+    {
+        if (string.IsNullOrEmpty(mimeType))
+            return false;
+
+        return mimeType.Contains("pdf") || 
+               mimeType.Contains("image") ||
+               mimeType.Contains("text");
+    }
+
+    private class PasswordModel
+    {
+        [Required(ErrorMessage = "كلمة المرور مطلوبة")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
+
+<script>
+    window.downloadFile = (fileName, base64Content) => {
+        const link = document.createElement('a');
+        link.href = 'data:application/octet-stream;base64,' + base64Content;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>
+

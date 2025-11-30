@@ -1,0 +1,95 @@
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <div class="d-flex justify-content-between align-items-center w-100">
+                <h4 class="mb-0">نظام إدارة المستندات القانونية</h4>
+                <div class="d-flex align-items-center gap-3">
+                    @if (currentUser != null)
+                    {
+                        <span class="text-muted">مرحباً، @currentUser.FullName</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="HandleLogout">تسجيل خروج</button>
+                    }
+                    else
+                    {
+                        <a href="/login" class="btn btn-sm btn-outline-primary">تسجيل دخول</a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private User? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await AuthService.GetCurrentUserAsync();
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}
+
+<style>
+    .page {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+    main {
+        flex: 1;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .sidebar {
+        background-color: #212529;
+        width: 250px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+
+    .top-row {
+        background-color: #ffffff;
+        border-bottom: 1px solid #dee2e6;
+        padding: 1rem 0;
+        height: 60px;
+    }
+
+    .content {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+    }
+
+    @media (max-width: 768px) {
+        .sidebar {
+            width: 100%;
+            height: auto;
+            position: relative;
+        }
+
+        .page {
+            flex-direction: column;
+        }
+    }
+</style>
+

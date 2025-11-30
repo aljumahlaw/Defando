@@ -1,0 +1,626 @@
+@page "/outgoing"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IOutgoingService OutgoingService
+@inject IDocumentService DocumentService
+@inject IAuthService AuthService
+@inject INotificationService NotificationService
+@inject NavigationManager Navigation
+
+<PageTitle>إدارة الصادر</PageTitle>
+
+<div class="container-fluid" dir="rtl">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-send me-2"></i>إدارة المراسلات الصادرة</h2>
+        @if (canCreate)
+        {
+            <button class="btn btn-primary" @onclick="ShowAddModal">
+                <i class="bi bi-plus-circle me-2"></i>إضافة صادر جديد
+            </button>
+        }
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="filterStartDate" class="form-label">من تاريخ</label>
+                    <InputDate id="filterStartDate" class="form-control" @bind-Value="filterStartDate" />
+                </div>
+                <div class="col-md-3">
+                    <label for="filterEndDate" class="form-label">إلى تاريخ</label>
+                    <InputDate id="filterEndDate" class="form-control" @bind-Value="filterEndDate" />
+                </div>
+                <div class="col-md-3">
+                    <label for="filterRecipient" class="form-label">الجهة المرسل إليها</label>
+                    <InputText id="filterRecipient" class="form-control" @bind-Value="filterRecipient" placeholder="ابحث عن جهة..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="filterDeliveryMethod" class="form-label">طريقة التسليم</label>
+                    <InputText id="filterDeliveryMethod" class="form-control" @bind-Value="filterDeliveryMethod" placeholder="مثال: بريد، إيميل..." />
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button class="btn btn-primary me-2" @onclick="ApplyFilters">
+                        <i class="bi bi-funnel me-2"></i>تطبيق الفلاتر
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle me-2"></i>مسح الفلاتر
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>رقم الصادر</th>
+                                <th>التاريخ</th>
+                                <th>الجهة المرسل إليها</th>
+                                <th>الموضوع</th>
+                                <th>طريقة التسليم</th>
+                                <th>المستند المرتبط</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (outgoingList == null || !outgoingList.Any())
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        لا توجد مراسلات صادرة
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var outgoing in outgoingList)
+                                {
+                                    <tr>
+                                        <td><strong>@outgoing.OutgoingNumber</strong></td>
+                                        <td>@outgoing.SendDate.ToString("yyyy-MM-dd")</td>
+                                        <td>@outgoing.RecipientName</td>
+                                        <td>@outgoing.Subject</td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(outgoing.DeliveryMethod))
+                                            {
+                                                <span class="badge bg-info">@outgoing.DeliveryMethod</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (outgoing.Document != null)
+                                            {
+                                                <a href="/documents/@outgoing.Document.DocumentId" class="text-decoration-none">
+                                                    <i class="bi bi-file-earmark-text me-1"></i>@outgoing.Document.DocumentName
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-info" @onclick="() => ShowDetailsModal(outgoing.OutgoingId)" title="عرض التفاصيل">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                @if (canEdit)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditModal(outgoing.OutgoingId)" title="تعديل">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                }
+                                                @if (canDelete)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(outgoing.OutgoingId)" title="حذف">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Add/Edit Modal -->
+    @if (showModal)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            @(isEditMode ? "تعديل صادر" : "إضافة صادر جديد")
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <EditForm Model="@outgoingModel" OnValidSubmit="@HandleSave">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="alert alert-danger" role="alert" />
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="outgoingNumber" class="form-label">رقم الصادر <span class="text-danger">*</span></label>
+                                    <InputText id="outgoingNumber" class="form-control" @bind-Value="outgoingModel.OutgoingNumber" />
+                                    <ValidationMessage For="@(() => outgoingModel.OutgoingNumber)" />
+                                    <small class="form-text text-muted">سيتم توليد الرقم تلقائياً إذا تركت الحقل فارغاً</small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="sendDate" class="form-label">تاريخ الإرسال <span class="text-danger">*</span></label>
+                                    <InputDate id="sendDate" class="form-control" @bind-Value="outgoingModel.SendDate" />
+                                    <ValidationMessage For="@(() => outgoingModel.SendDate)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="recipientName" class="form-label">الجهة المرسل إليها <span class="text-danger">*</span></label>
+                                    <InputText id="recipientName" class="form-control" @bind-Value="outgoingModel.RecipientName" />
+                                    <ValidationMessage For="@(() => outgoingModel.RecipientName)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="recipientAddress" class="form-label">عنوان الجهة</label>
+                                    <InputText id="recipientAddress" class="form-control" @bind-Value="outgoingModel.RecipientAddress" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label for="subject" class="form-label">الموضوع <span class="text-danger">*</span></label>
+                                    <InputText id="subject" class="form-control" @bind-Value="outgoingModel.Subject" />
+                                    <ValidationMessage For="@(() => outgoingModel.Subject)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="deliveryMethod" class="form-label">طريقة التسليم</label>
+                                    <InputText id="deliveryMethod" class="form-control" @bind-Value="outgoingModel.DeliveryMethod" placeholder="مثال: بريد، إيميل، يدوي" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="trackingNumber" class="form-label">رقم التتبع</label>
+                                    <InputText id="trackingNumber" class="form-control" @bind-Value="outgoingModel.TrackingNumber" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label for="documentId" class="form-label">ربط مستند</label>
+                                    <select id="documentId" class="form-select" @bind="outgoingModel.DocumentId">
+                                        <option value="">-- اختر مستند --</option>
+                                        @if (documents != null)
+                                        {
+                                            @foreach (var doc in documents)
+                                            {
+                                                <option value="@doc.DocumentId">@doc.DocumentName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label for="notes" class="form-label">ملاحظات</label>
+                                    <InputTextArea id="notes" class="form-control" rows="3" @bind-Value="outgoingModel.Notes" />
+                                </div>
+                            </div>
+
+                            <div class="modal-footer mt-4">
+                                <button type="button" class="btn btn-secondary" @onclick="CloseModal">إلغاء</button>
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    @(isEditMode ? "تحديث" : "حفظ")
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Details Modal -->
+    @if (showDetailsModal && selectedOutgoing != null)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">تفاصيل الصادر</h5>
+                        <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <strong>رقم الصادر:</strong>
+                                <p>@selectedOutgoing.OutgoingNumber</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>تاريخ الإرسال:</strong>
+                                <p>@selectedOutgoing.SendDate.ToString("yyyy-MM-dd")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>الجهة المرسل إليها:</strong>
+                                <p>@selectedOutgoing.RecipientName</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>عنوان الجهة:</strong>
+                                <p>@(selectedOutgoing.RecipientAddress ?? "-")</p>
+                            </div>
+                            <div class="col-md-12">
+                                <strong>الموضوع:</strong>
+                                <p>@selectedOutgoing.Subject</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>طريقة التسليم:</strong>
+                                <p>@(selectedOutgoing.DeliveryMethod ?? "-")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>رقم التتبع:</strong>
+                                <p>@(selectedOutgoing.TrackingNumber ?? "-")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>المستند المرتبط:</strong>
+                                <p>
+                                    @if (selectedOutgoing.Document != null)
+                                    {
+                                        <a href="/documents/@selectedOutgoing.Document.DocumentId" class="text-decoration-none">
+                                            <i class="bi bi-file-earmark-text me-1"></i>@selectedOutgoing.Document.DocumentName
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>أنشئ بواسطة:</strong>
+                                <p>@(selectedOutgoing.CreatedByUser?.FullName ?? "-")</p>
+                            </div>
+                            <div class="col-md-12">
+                                <strong>ملاحظات:</strong>
+                                <p>@(selectedOutgoing.Notes ?? "-")</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">إغلاق</button>
+                        @if (canEdit)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="() => { CloseDetailsModal(); ShowEditModal(selectedOutgoing.OutgoingId); }">
+                                <i class="bi bi-pencil me-2"></i>تعديل
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Outgoing>? outgoingList;
+    private List<Document>? documents;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private bool showModal = false;
+    private bool showDetailsModal = false;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private Outgoing? selectedOutgoing;
+    private OutgoingModel outgoingModel = new();
+
+    // Filters
+    private DateTime? filterStartDate;
+    private DateTime? filterEndDate;
+    private string? filterRecipient;
+    private string? filterDeliveryMethod;
+
+    // Permissions
+    private bool canCreate = false;
+    private bool canEdit = false;
+    private bool canDelete = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckPermissions();
+        await LoadDocuments();
+        await LoadOutgoing();
+    }
+
+    private async Task CheckPermissions()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser != null)
+        {
+            var role = currentUser.Role.ToLower();
+            canCreate = role == "admin" || role == "senior_lawyer" || role == "archiving";
+            canEdit = role == "admin" || role == "senior_lawyer" || role == "archiving";
+            canDelete = role == "admin" || role == "senior_lawyer";
+        }
+    }
+
+    private async Task LoadDocuments()
+    {
+        try
+        {
+            documents = await DocumentService.GetAllDocumentsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error silently or use NotificationService if needed
+        }
+    }
+
+    private async Task LoadOutgoing()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            if (HasActiveFilters())
+            {
+                outgoingList = await OutgoingService.SearchOutgoingAsync(
+                    startDate: filterStartDate,
+                    endDate: filterEndDate,
+                    recipientName: filterRecipient,
+                    deliveryMethod: filterDeliveryMethod);
+            }
+            else
+            {
+                outgoingList = await OutgoingService.GetAllOutgoingAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل البيانات: {ex.Message}";
+            NotificationService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool HasActiveFilters()
+    {
+        return filterStartDate.HasValue || filterEndDate.HasValue ||
+               !string.IsNullOrWhiteSpace(filterRecipient) ||
+               !string.IsNullOrWhiteSpace(filterDeliveryMethod);
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadOutgoing();
+    }
+
+    private async Task ClearFilters()
+    {
+        filterStartDate = null;
+        filterEndDate = null;
+        filterRecipient = null;
+        filterDeliveryMethod = null;
+        await LoadOutgoing();
+    }
+
+    private void ShowAddModal()
+    {
+        isEditMode = false;
+        outgoingModel = new OutgoingModel
+        {
+            SendDate = DateTime.Now.Date
+        };
+        showModal = true;
+    }
+
+    private async Task ShowEditModal(int id)
+    {
+        try
+        {
+            var outgoing = await OutgoingService.GetOutgoingByIdAsync(id);
+            if (outgoing != null)
+            {
+                isEditMode = true;
+                outgoingModel = new OutgoingModel
+                {
+                    OutgoingId = outgoing.OutgoingId,
+                    OutgoingNumber = outgoing.OutgoingNumber,
+                    SendDate = outgoing.SendDate,
+                    RecipientName = outgoing.RecipientName,
+                    RecipientAddress = outgoing.RecipientAddress,
+                    Subject = outgoing.Subject,
+                    DeliveryMethod = outgoing.DeliveryMethod,
+                    TrackingNumber = outgoing.TrackingNumber,
+                    DocumentId = outgoing.DocumentId,
+                    Notes = outgoing.Notes
+                };
+                showModal = true;
+            }
+            else
+            {
+                NotificationService.ShowError("لم يتم العثور على السجل");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"حدث خطأ: {ex.Message}");
+        }
+    }
+
+    private async Task ShowDetailsModal(int id)
+    {
+        try
+        {
+            selectedOutgoing = await OutgoingService.GetOutgoingByIdAsync(id);
+            if (selectedOutgoing != null)
+            {
+                showDetailsModal = true;
+            }
+            else
+            {
+                NotificationService.ShowError("لم يتم العثور على السجل");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"حدث خطأ: {ex.Message}");
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        outgoingModel = new OutgoingModel();
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedOutgoing = null;
+    }
+
+    private async Task HandleSave()
+    {
+        isSaving = true;
+
+        try
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                NotificationService.ShowError("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            var outgoing = new Outgoing
+            {
+                OutgoingId = outgoingModel.OutgoingId,
+                OutgoingNumber = outgoingModel.OutgoingNumber,
+                SendDate = outgoingModel.SendDate,
+                RecipientName = outgoingModel.RecipientName,
+                RecipientAddress = outgoingModel.RecipientAddress,
+                Subject = outgoingModel.Subject,
+                DeliveryMethod = outgoingModel.DeliveryMethod,
+                TrackingNumber = outgoingModel.TrackingNumber,
+                DocumentId = outgoingModel.DocumentId == 0 ? null : outgoingModel.DocumentId,
+                Notes = outgoingModel.Notes,
+                CreatedBy = currentUser.UserId
+            };
+
+            if (isEditMode)
+            {
+                await OutgoingService.UpdateOutgoingAsync(outgoing);
+                NotificationService.ShowSuccess("تم تحديث الصادر بنجاح");
+            }
+            else
+            {
+                await OutgoingService.CreateOutgoingAsync(outgoing);
+                NotificationService.ShowSuccess("تم إضافة الصادر بنجاح");
+            }
+
+            CloseModal();
+            await LoadOutgoing();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"حدث خطأ أثناء الحفظ: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        if (!canDelete)
+        {
+            NotificationService.ShowError("ليس لديك صلاحية للحذف");
+            return;
+        }
+
+        // Simple confirmation - in production, use a proper confirmation dialog
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "هل أنت متأكد من حذف هذا السجل؟"))
+        {
+            try
+            {
+                await OutgoingService.DeleteOutgoingAsync(id);
+                NotificationService.ShowSuccess("تم حذف الصادر بنجاح");
+                await LoadOutgoing();
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"حدث خطأ أثناء الحذف: {ex.Message}");
+            }
+        }
+    }
+
+    private class OutgoingModel
+    {
+        public int OutgoingId { get; set; }
+
+        [MaxLength(60)]
+        public string OutgoingNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "تاريخ الإرسال مطلوب")]
+        public DateTime SendDate { get; set; } = DateTime.Now.Date;
+
+        [Required(ErrorMessage = "الجهة المرسل إليها مطلوبة")]
+        [MaxLength(200, ErrorMessage = "الحد الأقصى 200 حرف")]
+        public string RecipientName { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string? RecipientAddress { get; set; }
+
+        [Required(ErrorMessage = "الموضوع مطلوب")]
+        [MaxLength(500, ErrorMessage = "الحد الأقصى 500 حرف")]
+        public string Subject { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string? DeliveryMethod { get; set; }
+
+        [MaxLength(120)]
+        public string? TrackingNumber { get; set; }
+
+        public int? DocumentId { get; set; }
+
+        public string? Notes { get; set; }
+    }
+
+    [Inject] private IJSRuntime? JSRuntime { get; set; }
+}
+

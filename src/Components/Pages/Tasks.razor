@@ -1,0 +1,234 @@
+@page "/tasks"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ITaskService TaskService
+@inject NavigationManager Navigation
+
+<PageTitle>المهام</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>إدارة المهام</h2>
+        <button class="btn btn-primary" @onclick="NavigateToAdd">
+            <i class="bi bi-plus-circle me-2"></i>إضافة مهمة جديدة
+        </button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">فلترة حسب الحالة:</label>
+                    <select class="form-select" @bind="selectedStatus" @bind:event="onchange">
+                        <option value="">جميع المهام</option>
+                        <option value="pending">معلقة</option>
+                        <option value="in_progress">قيد التنفيذ</option>
+                        <option value="completed">مكتملة</option>
+                        <option value="cancelled">ملغاة</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري التحميل...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>عنوان المهمة</th>
+                                <th>المسند إليه</th>
+                                <th>الحالة</th>
+                                <th>الأولوية</th>
+                                <th>تاريخ الاستحقاق</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredTasks.Any())
+                            {
+                                @foreach (var task in filteredTasks)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@task.TaskTitle</strong>
+                                            @if (!string.IsNullOrEmpty(task.TaskDescription))
+                                            {
+                                                <br />
+                                                <small class="text-muted">@(task.TaskDescription.Length > 50 ? task.TaskDescription.Substring(0, 50) + "..." : task.TaskDescription)</small>
+                                            }
+                                        </td>
+                                        <td>@(task.AssignedToUser?.FullName ?? "غير معروف")</td>
+                                        <td>
+                                            @GetStatusBadge(task.Status)
+                                        </td>
+                                        <td>
+                                            @GetPriorityBadge(task.Priority)
+                                        </td>
+                                        <td>
+                                            @if (task.DueDate.HasValue)
+                                            {
+                                                @if (task.DueDate.Value < DateTime.Today && task.Status != "completed")
+                                                {
+                                                    <span class="text-danger">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                                        @task.DueDate.Value.ToString("yyyy-MM-dd")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    @task.DueDate.Value.ToString("yyyy-MM-dd")
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => ViewTask(task.TaskId)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-warning me-1" @onclick="() => EditTask(task.TaskId)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-success" @onclick="() => UpdateTaskStatus(task.TaskId, task.Status)">
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        لا توجد مهام
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<TaskItem> tasks = new();
+    private List<TaskItem> filteredTasks = new();
+    private string selectedStatus = string.Empty;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasks();
+    }
+
+    private async Task LoadTasks()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            tasks = await TaskService.GetAllTasksAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل المهام: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(selectedStatus))
+        {
+            filteredTasks = tasks;
+        }
+        else
+        {
+            filteredTasks = tasks.Where(t => t.Status == selectedStatus).ToList();
+        }
+    }
+
+    private void NavigateToAdd()
+    {
+        Navigation.NavigateTo("/tasks/add");
+    }
+
+    private void ViewTask(int id)
+    {
+        Navigation.NavigateTo($"/tasks/{id}");
+    }
+
+    private void EditTask(int id)
+    {
+        Navigation.NavigateTo($"/tasks/{id}/edit");
+    }
+
+    private async Task UpdateTaskStatus(int id, string currentStatus)
+    {
+        try
+        {
+            string newStatus = currentStatus switch
+            {
+                "pending" => "in_progress",
+                "in_progress" => "completed",
+                _ => "pending"
+            };
+
+            await TaskService.UpdateTaskStatusAsync(id, newStatus);
+            await LoadTasks();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحديث حالة المهمة: {ex.Message}";
+        }
+    }
+
+    private RenderFragment GetStatusBadge(string status) => status switch
+    {
+        "pending" => @<span class="badge bg-warning"><i class="bi bi-clock me-1"></i>معلقة</span>,
+        "in_progress" => @<span class="badge bg-info"><i class="bi bi-arrow-repeat me-1"></i>قيد التنفيذ</span>,
+        "completed" => @<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>مكتملة</span>,
+        "cancelled" => @<span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>ملغاة</span>,
+        _ => @<span class="badge bg-secondary">@status</span>
+    };
+
+    private RenderFragment GetPriorityBadge(string priority) => priority switch
+    {
+        "low" => @<span class="badge bg-secondary">منخفضة</span>,
+        "normal" => @<span class="badge bg-info">عادية</span>,
+        "high" => @<span class="badge bg-warning">عالية</span>,
+        "critical" => @<span class="badge bg-danger">عاجلة</span>,
+        _ => @<span class="badge bg-secondary">@priority</span>
+    };
+}
+

@@ -1,0 +1,122 @@
+@page "/"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+<PageTitle>لوحة التحكم</PageTitle>
+
+<div class="container-fluid">
+    <h2 class="mb-4">لوحة التحكم</h2>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">إجمالي المستندات</h6>
+                            <h3 class="mb-0">@totalDocuments</h3>
+                        </div>
+                        <i class="bi bi-file-earmark-text fs-1 text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">المهام النشطة</h6>
+                            <h3 class="mb-0">@activeTasks</h3>
+                        </div>
+                        <i class="bi bi-list-check fs-1 text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">المستندات المقفولة</h6>
+                            <h3 class="mb-0">@lockedDocuments</h3>
+                        </div>
+                        <i class="bi bi-lock fs-1 text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">المستخدمين النشطين</h6>
+                            <h3 class="mb-0">@activeUsers</h3>
+                        </div>
+                        <i class="bi bi-people fs-1 text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">آخر المستندات</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">TODO: ربط بـ Database لاحقاً</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">لا توجد مستندات حديثة</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">المهام العاجلة</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">TODO: ربط بـ Database لاحقاً</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">لا توجد مهام عاجلة</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int totalDocuments = 0;
+    private int activeTasks = 0;
+    private int lockedDocuments = 0;
+    private int activeUsers = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: ربط بـ Database لاحقاً
+        // await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        // TODO: جلب البيانات من ApplicationDbContext
+        // using var scope = ServiceProvider.CreateScope();
+        // var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        // totalDocuments = await db.Documents.CountAsync();
+        // activeTasks = await db.Tasks.CountAsync(t => t.Status != "completed");
+        // lockedDocuments = await db.Documents.CountAsync(d => d.IsLocked);
+        // activeUsers = await db.Users.CountAsync(u => u.IsActive);
+    }
+}
+

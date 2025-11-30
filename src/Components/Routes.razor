@@ -1,0 +1,13 @@
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>غير موجود</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">عذراً، الصفحة المطلوبة غير موجودة.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
+

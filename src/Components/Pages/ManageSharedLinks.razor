@@ -1,0 +1,583 @@
+@page "/shared-links"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject ISharedLinkService SharedLinkService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>إدارة الروابط المشتركة</PageTitle>
+
+<style>
+    .shared-links-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .filter-card {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+    }
+
+    .status-badge {
+        font-size: 0.875rem;
+        padding: 0.35rem 0.65rem;
+    }
+
+    .action-buttons {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="container-fluid shared-links-container" dir="rtl">
+    @if (!isAuthorized)
+    {
+        <div class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            يجب أن تكون مسجلاً كمدير للوصول إلى هذه الصفحة.
+        </div>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2>
+                        <i class="bi bi-link-45deg me-2"></i>إدارة الروابط المشتركة
+                    </h2>
+                    <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo(\"/documents\")">
+                        <i class="bi bi-arrow-right me-2"></i>العودة للمستندات
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card filter-card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="searchDocumentName" class="form-label fw-bold">
+                            <i class="bi bi-search me-1"></i>بحث في اسم المستند
+                        </label>
+                        <input 
+                            type="text" 
+                            id="searchDocumentName"
+                            class="form-control" 
+                            @bind="searchDocumentName" 
+                            @bind:event="oninput"
+                            @oninput="OnSearchChanged"
+                            placeholder="أدخل اسم المستند..."
+                            aria-label="بحث في اسم المستند" />
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterStatus" class="form-label fw-bold">
+                            <i class="bi bi-funnel me-1"></i>حالة الرابط
+                        </label>
+                        <select 
+                            id="filterStatus"
+                            class="form-select" 
+                            value="@filterStatus"
+                            @onchange="@((ChangeEventArgs e) => { filterStatus = e.Value?.ToString() ?? string.Empty; OnFilterChanged(); })"
+                            aria-label="فلترة حسب حالة الرابط">
+                            <option value="">جميع الحالات</option>
+                            <option value="active">نشط</option>
+                            <option value="inactive">معطل</option>
+                            <option value="expired">منتهي الصلاحية</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterExpiration" class="form-label fw-bold">
+                            <i class="bi bi-calendar-x me-1"></i>تاريخ الانتهاء
+                        </label>
+                        <select 
+                            id="filterExpiration"
+                            class="form-select" 
+                            value="@filterExpiration"
+                            @onchange="@((ChangeEventArgs e) => { filterExpiration = e.Value?.ToString() ?? string.Empty; OnFilterChanged(); })"
+                            aria-label="فلترة حسب تاريخ الانتهاء">
+                            <option value="">جميع التواريخ</option>
+                            <option value="today">ينتهي اليوم</option>
+                            <option value="week">ينتهي خلال أسبوع</option>
+                            <option value="month">ينتهي خلال شهر</option>
+                            <option value="expired">منتهي الصلاحية</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button 
+                            class="btn btn-outline-secondary w-100" 
+                            @onclick="ClearFilters"
+                            aria-label="مسح الفلاتر">
+                            <i class="bi bi-x-circle me-1"></i>مسح
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        @if (isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">جاري التحميل...</span>
+                </div>
+                <p class="mt-2 text-muted">جاري تحميل الروابط المشتركة...</p>
+            </div>
+        }
+        else if (errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="إغلاق"></button>
+            </div>
+        }
+        else
+        {
+            <!-- Results Count -->
+            <div class="mb-3">
+                <span class="badge bg-info fs-6">
+                    @filteredLinks.Count من @allLinks.Count رابط
+                </span>
+            </div>
+
+            <!-- Links Table -->
+            <div class="card">
+                <div class="card-body">
+                    @if (filteredLinks.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>معرف الرابط</th>
+                                        <th>اسم المستند</th>
+                                        <th>تاريخ الإنشاء</th>
+                                        <th>تاريخ الانتهاء</th>
+                                        <th>عدد مرات الوصول</th>
+                                        <th>الحماية</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var link in filteredLinks)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-secondary">#@link.LinkId</span>
+                                            </td>
+                                            <td>
+                                                @if (link.Document != null)
+                                                {
+                                                    <a href="/documents/@link.Document.DocumentId" class="text-decoration-none">
+                                                        @link.Document.DocumentName
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">مستند محذوف</span>
+                                                }
+                                            </td>
+                                            <td>@link.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                            <td>
+                                                <span class="@(link.ExpiresAt < DateTime.UtcNow ? "text-danger" : "")">
+                                                    @link.ExpiresAt.ToString("yyyy-MM-dd HH:mm")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @if (link.MaxAccessCount.HasValue)
+                                                {
+                                                    <span>@link.CurrentAccessCount / @link.MaxAccessCount.Value</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@link.CurrentAccessCount (غير محدود)</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(link.PasswordHash))
+                                                {
+                                                    <span class="badge bg-warning status-badge">
+                                                        <i class="bi bi-lock me-1"></i>محمي
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success status-badge">
+                                                        <i class="bi bi-unlock me-1"></i>غير محمي
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!link.IsActive)
+                                                {
+                                                    <span class="badge bg-secondary status-badge">
+                                                        <i class="bi bi-x-circle me-1"></i>معطل
+                                                    </span>
+                                                }
+                                                else if (link.ExpiresAt < DateTime.UtcNow)
+                                                {
+                                                    <span class="badge bg-danger status-badge">
+                                                        <i class="bi bi-clock-history me-1"></i>منتهي
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success status-badge">
+                                                        <i class="bi bi-check-circle me-1"></i>نشط
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons d-flex gap-1">
+                                                    @if (link.IsActive)
+                                                    {
+                                                        <button 
+                                                            class="btn btn-sm btn-warning" 
+                                                            @onclick="() => ShowDeactivateModal(link)"
+                                                            title="تعطيل الرابط"
+                                                            aria-label="تعطيل الرابط">
+                                                            <i class="bi bi-pause-circle"></i>
+                                                        </button>
+                                                    }
+                                                    <button 
+                                                        class="btn btn-sm btn-danger" 
+                                                        @onclick="() => ShowDeleteModal(link)"
+                                                        title="حذف الرابط"
+                                                        aria-label="حذف الرابط">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                    <button 
+                                                        class="btn btn-sm btn-info" 
+                                                        @onclick="() => CopyLink(link)"
+                                                        title="نسخ الرابط"
+                                                        aria-label="نسخ الرابط">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-3 text-muted"></i>
+                            <p class="text-muted">لا توجد روابط مشتركة</p>
+                            @if (!string.IsNullOrEmpty(searchDocumentName) || !string.IsNullOrEmpty(filterStatus) || !string.IsNullOrEmpty(filterExpiration))
+                            {
+                                <p class="small text-muted">جرب تغيير معايير البحث</p>
+                                <button class="btn btn-outline-primary mt-2" @onclick="ClearFilters">
+                                    <i class="bi bi-x-circle me-1"></i>مسح الفلاتر
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Success/Error Messages -->
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null" aria-label="إغلاق"></button>
+            </div>
+        }
+    }
+
+    <!-- Deactivate Confirmation Modal -->
+    @if (showDeactivateModal && selectedLink != null)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">تأكيد تعطيل الرابط</h5>
+                        <button type="button" class="btn-close" @onclick="HideDeactivateModal" aria-label="إغلاق"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>هل أنت متأكد من تعطيل هذا الرابط؟</p>
+                        <div class="alert alert-info">
+                            <strong>معلومات الرابط:</strong><br />
+                            <small>
+                                المعرف: #@selectedLink.LinkId<br />
+                                المستند: @(selectedLink.Document?.DocumentName ?? "غير معروف")<br />
+                                عدد مرات الوصول: @selectedLink.CurrentAccessCount
+                            </small>
+                        </div>
+                        <p class="text-muted small">بعد التعطيل، لن يتمكن المستخدمون من الوصول إلى المستند عبر هذا الرابط.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="HideDeactivateModal">إلغاء</button>
+                        <button type="button" class="btn btn-warning" @onclick="ConfirmDeactivate" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-pause-circle me-2"></i>تعطيل الرابط
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Delete Confirmation Modal -->
+    @if (showDeleteModal && selectedLink != null)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">تأكيد حذف الرابط</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="HideDeleteModal" aria-label="إغلاق"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>تحذير!</strong> هذا الإجراء لا يمكن التراجع عنه.
+                        </div>
+                        <p>هل أنت متأكد من حذف هذا الرابط بشكل نهائي؟</p>
+                        <div class="alert alert-warning">
+                            <strong>معلومات الرابط:</strong><br />
+                            <small>
+                                المعرف: #@selectedLink.LinkId<br />
+                                المستند: @(selectedLink.Document?.DocumentName ?? "غير معروف")<br />
+                                عدد مرات الوصول: @selectedLink.CurrentAccessCount
+                            </small>
+                        </div>
+                        <p class="text-muted small">سيتم حذف الرابط وجميع سجلات الوصول المرتبطة به.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="HideDeleteModal">إلغاء</button>
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-trash me-2"></i>حذف الرابط
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<SharedLink> allLinks = new();
+    private List<SharedLink> filteredLinks = new();
+    private bool isLoading = true;
+    private bool isAuthorized = false;
+    private bool isProcessing = false;
+    private bool showDeactivateModal = false;
+    private bool showDeleteModal = false;
+    private SharedLink? selectedLink;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // Filter properties
+    private string searchDocumentName = string.Empty;
+    private string filterStatus = string.Empty;
+    private string filterExpiration = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check authorization (admin only)
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        isAuthorized = currentUser?.Role == "admin";
+
+        if (isAuthorized)
+        {
+            await LoadSharedLinks();
+        }
+    }
+
+    private async Task LoadSharedLinks()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            allLinks = await SharedLinkService.GetAllSharedLinksAsync();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل الروابط المشتركة: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredLinks = allLinks.AsQueryable();
+
+        // Filter by document name
+        if (!string.IsNullOrWhiteSpace(searchDocumentName))
+        {
+            filteredLinks = filteredLinks
+                .Where(l => l.Document != null && 
+                           l.Document.DocumentName.Contains(searchDocumentName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Filter by status
+        if (!string.IsNullOrEmpty(filterStatus))
+        {
+            filteredLinks = filterStatus switch
+            {
+                "active" => filteredLinks.Where(l => l.IsActive && l.ExpiresAt >= DateTime.UtcNow).ToList(),
+                "inactive" => filteredLinks.Where(l => !l.IsActive).ToList(),
+                "expired" => filteredLinks.Where(l => l.ExpiresAt < DateTime.UtcNow).ToList(),
+                _ => filteredLinks
+            };
+        }
+
+        // Filter by expiration
+        if (!string.IsNullOrEmpty(filterExpiration))
+        {
+            var now = DateTime.UtcNow;
+            filteredLinks = filterExpiration switch
+            {
+                "today" => filteredLinks.Where(l => l.ExpiresAt.Date == now.Date).ToList(),
+                "week" => filteredLinks.Where(l => l.ExpiresAt >= now && l.ExpiresAt <= now.AddDays(7)).ToList(),
+                "month" => filteredLinks.Where(l => l.ExpiresAt >= now && l.ExpiresAt <= now.AddMonths(1)).ToList(),
+                "expired" => filteredLinks.Where(l => l.ExpiresAt < now).ToList(),
+                _ => filteredLinks
+            };
+        }
+
+        // Reorder by creation date
+        filteredLinks = filteredLinks.OrderByDescending(l => l.CreatedAt).ToList();
+    }
+
+    private void ClearFilters()
+    {
+        searchDocumentName = string.Empty;
+        filterStatus = string.Empty;
+        filterExpiration = string.Empty;
+        ApplyFilters();
+    }
+
+    private void ShowDeactivateModal(SharedLink link)
+    {
+        selectedLink = link;
+        showDeactivateModal = true;
+    }
+
+    private void HideDeactivateModal()
+    {
+        showDeactivateModal = false;
+        selectedLink = null;
+    }
+
+    private async Task ConfirmDeactivate()
+    {
+        if (selectedLink == null)
+            return;
+
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await SharedLinkService.DeactivateLinkAsync(selectedLink.LinkId);
+            successMessage = "تم تعطيل الرابط بنجاح.";
+            
+            // Reload links
+            await LoadSharedLinks();
+            
+            HideDeactivateModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تعطيل الرابط: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ShowDeleteModal(SharedLink link)
+    {
+        selectedLink = link;
+        showDeleteModal = true;
+    }
+
+    private void HideDeleteModal()
+    {
+        showDeleteModal = false;
+        selectedLink = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (selectedLink == null)
+            return;
+
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await SharedLinkService.DeleteLinkAsync(selectedLink.LinkId);
+            successMessage = "تم حذف الرابط بنجاح.";
+            
+            // Reload links
+            await LoadSharedLinks();
+            
+            HideDeleteModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء حذف الرابط: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task CopyLink(SharedLink link)
+    {
+        try
+        {
+            var baseUrl = Navigation.BaseUri.TrimEnd('/');
+            var fullLink = $"{baseUrl}/shared/{link.LinkToken}";
+            
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", fullLink);
+            successMessage = "تم نسخ الرابط إلى الحافظة.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء نسخ الرابط: {ex.Message}";
+        }
+    }
+
+    // Watch for filter changes
+    private void OnSearchChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void OnFilterChanged()
+    {
+        ApplyFilters();
+    }
+}
+

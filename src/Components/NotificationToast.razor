@@ -1,0 +1,147 @@
+@inject INotificationService NotificationService
+@implements IDisposable
+
+<style>
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 9999;
+        max-width: 400px;
+    }
+
+    .toast {
+        margin-bottom: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        animation: slideIn 0.3s ease-out;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .toast.success {
+        background-color: #d1e7dd;
+        border-right: 4px solid #198754;
+        color: #0f5132;
+    }
+
+    .toast.error {
+        background-color: #f8d7da;
+        border-right: 4px solid #dc3545;
+        color: #842029;
+    }
+
+    .toast.warning {
+        background-color: #fff3cd;
+        border-right: 4px solid #ffc107;
+        color: #856404;
+    }
+
+    .toast.info {
+        background-color: #d1ecf1;
+        border-right: 4px solid #0dcaf0;
+        color: #055160;
+    }
+
+    .toast-header {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        font-weight: 600;
+    }
+
+    .toast-body {
+        padding: 12px 16px;
+    }
+
+    .toast-close {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        margin-left: auto;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .toast-close:hover {
+        opacity: 1;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+    }
+
+    .toast.removing {
+        animation: slideOut 0.3s ease-out;
+    }
+</style>
+
+<div class="toast-container" dir="rtl">
+    @foreach (var notification in NotificationService.Notifications)
+    {
+        <div class="toast @notification.Type.ToString().ToLower()" role="alert" aria-live="polite">
+            <div class="toast-header">
+                @switch (notification.Type)
+                {
+                    case NotificationType.Success:
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        <span>نجاح</span>
+                        break;
+                    case NotificationType.Error:
+                        <i class="bi bi-x-circle-fill me-2"></i>
+                        <span>خطأ</span>
+                        break;
+                    case NotificationType.Warning:
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span>تحذير</span>
+                        break;
+                    case NotificationType.Info:
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <span>معلومة</span>
+                        break;
+                }
+                <button 
+                    type="button" 
+                    class="toast-close" 
+                    @onclick="() => NotificationService.RemoveNotification(notification.Id)"
+                    aria-label="إغلاق">
+                    &times;
+                </button>
+            </div>
+            <div class="toast-body">
+                @notification.Message
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NotificationService.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnChange -= StateHasChanged;
+    }
+}
+

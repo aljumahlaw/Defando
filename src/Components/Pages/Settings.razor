@@ -1,0 +1,206 @@
+@page "/settings"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IAuthService AuthService
+
+<PageTitle>الإعدادات</PageTitle>
+
+<div class="container-fluid" dir="rtl">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>الإعدادات العامة</h2>
+        @if (isAdmin)
+        {
+            <a href="/settings/smtp" class="btn btn-outline-primary">
+                <i class="bi bi-envelope-at me-2"></i>إعدادات SMTP
+            </a>
+        }
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">إعدادات النظام</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@settingsModel" OnValidSubmit="@HandleSave">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="mb-3">
+                            <label for="systemName" class="form-label">اسم النظام</label>
+                            <InputText id="systemName" class="form-control" @bind-Value="settingsModel.SystemName" />
+                            <ValidationMessage For="@(() => settingsModel.SystemName)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="maxFileSize" class="form-label">الحد الأقصى لحجم الملف (MB)</label>
+                            <InputNumber id="maxFileSize" class="form-control" @bind-Value="settingsModel.MaxFileSizeMB" />
+                            <ValidationMessage For="@(() => settingsModel.MaxFileSizeMB)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="lockTimeout" class="form-label">مهلة القفل التلقائي (ساعات)</label>
+                            <InputNumber id="lockTimeout" class="form-control" @bind-Value="settingsModel.LockTimeoutHours" />
+                            <small class="form-text text-muted">سيتم فك قفل الملفات تلقائياً بعد هذه المدة</small>
+                            <ValidationMessage For="@(() => settingsModel.LockTimeoutHours)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ocrEnabled" class="form-label">تفعيل OCR</label>
+                            <InputCheckbox id="ocrEnabled" class="form-check-input" @bind-Value="settingsModel.OcrEnabled" />
+                            <small class="form-text text-muted">معالجة تلقائية للمستندات الممسوحة</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="emailNotifications" class="form-label">تفعيل إشعارات البريد الإلكتروني</label>
+                            <InputCheckbox id="emailNotifications" class="form-check-input" @bind-Value="settingsModel.EmailNotificationsEnabled" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="backupPath" class="form-label">مسار النسخ الاحتياطي</label>
+                            <InputText id="backupPath" class="form-control" @bind-Value="settingsModel.BackupPath" />
+                            <ValidationMessage For="@(() => settingsModel.BackupPath)" />
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="ResetForm">
+                                إلغاء
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                حفظ الإعدادات
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    @if (!string.IsNullOrEmpty(saveMessage))
+                    {
+                        <div class="alert alert-@(isSuccess ? "success" : "danger") mt-3" role="alert">
+                            @saveMessage
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">معلومات النظام</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="mb-0">
+                        <dt>إصدار النظام:</dt>
+                        <dd>1.0.0</dd>
+
+                        <dt>قاعدة البيانات:</dt>
+                        <dd>PostgreSQL 14+</dd>
+
+                        <dt>إطار العمل:</dt>
+                        <dd>ASP.NET Core 8</dd>
+
+                        <dt>واجهة المستخدم:</dt>
+                        <dd>Blazor Server</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SettingsModel settingsModel = new();
+    private bool isSaving = false;
+    private string? saveMessage;
+    private bool isSuccess = false;
+    private bool isAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        isAdmin = currentUser?.Role == "admin";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        // TODO: Load settings from database (Settings table)
+        // using var scope = ServiceProvider.CreateScope();
+        // var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        // var settings = await db.Settings.ToListAsync();
+        
+        // Placeholder values
+        settingsModel = new SettingsModel
+        {
+            SystemName = "نظام إدارة المستندات القانونية",
+            MaxFileSizeMB = 100,
+            LockTimeoutHours = 8,
+            OcrEnabled = true,
+            EmailNotificationsEnabled = true,
+            BackupPath = "C:\\Backups"
+        };
+    }
+
+    private async Task HandleSave()
+    {
+        isSaving = true;
+        saveMessage = null;
+
+        try
+        {
+            // TODO: Save settings to database
+            // using var scope = ServiceProvider.CreateScope();
+            // var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            // await SaveSettingsToDatabase(settingsModel);
+            
+            await Task.Delay(500); // Simulate save operation
+            
+            saveMessage = "تم حفظ الإعدادات بنجاح";
+            isSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            saveMessage = $"حدث خطأ أثناء حفظ الإعدادات: {ex.Message}";
+            isSuccess = false;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ResetForm()
+    {
+        settingsModel = new SettingsModel();
+        saveMessage = null;
+    }
+
+    private class SettingsModel
+    {
+        [Required(ErrorMessage = "اسم النظام مطلوب")]
+        [MaxLength(100)]
+        public string SystemName { get; set; } = string.Empty;
+
+        [Range(1, 1000, ErrorMessage = "يجب أن يكون الحجم بين 1 و 1000 MB")]
+        public int MaxFileSizeMB { get; set; } = 100;
+
+        [Range(1, 24, ErrorMessage = "يجب أن تكون المهلة بين 1 و 24 ساعة")]
+        public int LockTimeoutHours { get; set; } = 8;
+
+        public bool OcrEnabled { get; set; } = true;
+
+        public bool EmailNotificationsEnabled { get; set; } = true;
+
+        [MaxLength(500)]
+        public string? BackupPath { get; set; }
+    }
+}
+

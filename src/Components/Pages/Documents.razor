@@ -1,0 +1,209 @@
+@page "/documents"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IDocumentService DocumentService
+@inject NavigationManager Navigation
+
+<PageTitle>المستندات</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>إدارة المستندات</h2>
+        <button class="btn btn-primary" @onclick="NavigateToAdd">
+            <i class="bi bi-plus-circle me-2"></i>إضافة مستند جديد
+        </button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="بحث في المستندات..." @bind="searchQuery" @bind:event="oninput" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري التحميل...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>اسم المستند</th>
+                                <th>النوع</th>
+                                <th>المجلد</th>
+                                <th>تاريخ الرفع</th>
+                                <th>رافع الملف</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredDocuments.Any())
+                            {
+                                @foreach (var doc in filteredDocuments)
+                                {
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-file-earmark-text me-2"></i>
+                                            @doc.DocumentName
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@(doc.DocumentType ?? "غير محدد")</span>
+                                        </td>
+                                        <td>@(doc.Folder?.FolderName ?? "بدون مجلد")</td>
+                                        <td>@doc.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td>@(doc.UploadedByUser?.FullName ?? "غير معروف")</td>
+                                        <td>
+                                            @if (doc.IsLocked)
+                                            {
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-lock me-1"></i>مقفول
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-unlock me-1"></i>مفتوح
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => ViewDocument(doc.DocumentId)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-warning me-1" @onclick="() => EditDocument(doc.DocumentId)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteDocument(doc.DocumentId)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        لا توجد مستندات
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Document> documents = new();
+    private List<Document> filteredDocuments = new();
+    private string searchQuery = string.Empty;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocuments();
+    }
+
+    private async Task LoadDocuments()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            documents = await DocumentService.GetAllDocumentsAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل المستندات: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredDocuments = documents;
+        }
+        else
+        {
+            filteredDocuments = documents
+                .Where(d => d.DocumentName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                           (d.DocumentType != null && d.DocumentType.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+    }
+
+    private void NavigateToAdd()
+    {
+        // TODO: Navigate to add document page
+        Navigation.NavigateTo("/documents/add");
+    }
+
+    private void ViewDocument(int id)
+    {
+        Navigation.NavigateTo($"/documents/{id}");
+    }
+
+    private void EditDocument(int id)
+    {
+        // TODO: Navigate to edit document page
+        Navigation.NavigateTo($"/documents/{id}/edit");
+    }
+
+    private async Task DeleteDocument(int id)
+    {
+        if (!await ConfirmDelete())
+            return;
+
+        try
+        {
+            await DocumentService.DeleteDocumentAsync(id);
+            await LoadDocuments();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء حذف المستند: {ex.Message}";
+        }
+    }
+
+    private async Task<bool> ConfirmDelete()
+    {
+        // TODO: Use JavaScript confirm dialog
+        return true;
+    }
+}
+

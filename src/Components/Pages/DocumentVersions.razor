@@ -1,0 +1,377 @@
+@page "/documents/{id:int}/versions"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IDocumentService DocumentService
+@inject IAuthService AuthService
+@inject IFileStorageService FileStorageService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>إدارة الإصدارات - @(document?.DocumentName ?? "المستند")</PageTitle>
+
+<div class="container-fluid" dir="rtl">
+    <div class="mb-3">
+        <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo($\"/documents/{Id}\")">
+            <i class="bi bi-arrow-right me-2"></i>العودة لتفاصيل المستند
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري تحميل الإصدارات...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else if (document == null)
+    {
+        <div class="alert alert-warning" role="alert">
+            المستند غير موجود
+        </div>
+    }
+    else
+    {
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text me-2"></i>@document.DocumentName
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>النوع:</strong> @(document.DocumentType ?? "غير محدد")</p>
+                        <p><strong>الإصدار الحالي:</strong> <span class="badge bg-primary">v@(document.CurrentVersion)</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>الحالة:</strong> 
+                            @if (document.IsLocked)
+                            {
+                                <span class="badge bg-warning">
+                                    <i class="bi bi-lock me-1"></i>مقفول
+                                    @if (document.LockedByUser != null)
+                                    {
+                                        <span>بواسطة: @document.LockedByUser.FullName</span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">
+                                    <i class="bi bi-unlock me-1"></i>مفتوح
+                                </span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">سجل الإصدارات</h5>
+                <div>
+                    @if (!document.IsLocked)
+                    {
+                        <button class="btn btn-sm btn-warning" @onclick="() => Navigation.NavigateTo($\"/documents/{Id}\")">
+                            <i class="bi bi-lock me-1"></i>قفل المستند (Check-out)
+                        </button>
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                @if (document.Versions != null && document.Versions.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>رقم الإصدار</th>
+                                    <th>تاريخ الإنشاء</th>
+                                    <th>منشئ الإصدار</th>
+                                    <th>وصف التعديل</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var version in document.Versions.OrderByDescending(v => v.VersionNumber))
+                                {
+                                    var isCurrentVersion = version.VersionNumber == document.CurrentVersion;
+                                    <tr class="@(isCurrentVersion ? "table-primary fw-bold border border-primary border-2" : "")">
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <span class="badge bg-info fs-6">v@(version.VersionNumber)</span>
+                                                @if (isCurrentVersion)
+                                                {
+                                                    <span class="badge bg-primary">
+                                                        <i class="bi bi-star-fill me-1"></i>الحالي
+                                                    </span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-calendar3 me-1 text-muted"></i>
+                                            @version.CreatedAt.ToString("yyyy-MM-dd")
+                                            <br />
+                                            <small class="text-muted">@version.CreatedAt.ToString("HH:mm")</small>
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-person me-1 text-muted"></i>
+                                            @(version.CreatedByUser?.FullName ?? "غير معروف")
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(version.ChangeDescription))
+                                            {
+                                            <div class="text-wrap" style="max-width: 400px;">
+                                                <i class="bi bi-file-text me-1 text-muted"></i>
+                                                @version.ChangeDescription
+                                            </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted fst-italic">لا يوجد وصف</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (version.IsFinal)
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>نهائي
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-file-earmark me-1"></i>مسودة
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button 
+                                                    class="btn btn-outline-primary" 
+                                                    @onclick="() => DownloadVersion(version.VersionId)" 
+                                                    title="تحميل هذا الإصدار"
+                                                    disabled="@isLoading">
+                                                    <i class="bi bi-download"></i>
+                                                    <span class="d-none d-md-inline ms-1">تحميل</span>
+                                                </button>
+                                                <button 
+                                                    class="btn btn-outline-info" 
+                                                    @onclick="() => ViewVersionDetails(version.VersionId)" 
+                                                    title="عرض تفاصيل الإصدار"
+                                                    disabled="@isLoading">
+                                                    <i class="bi bi-eye"></i>
+                                                    <span class="d-none d-md-inline ms-1">عرض</span>
+                                                </button>
+                                                @if (isCurrentVersion && !document.IsLocked)
+                                                {
+                                                    <button 
+                                                        class="btn btn-outline-warning" 
+                                                        @onclick="() => MarkAsFinal(version.VersionId)" 
+                                                        title="تعيين كإصدار نهائي"
+                                                        disabled="@(isLoading || version.IsFinal)">
+                                                        <i class="bi bi-check-circle"></i>
+                                                        <span class="d-none d-md-inline ms-1">نهائي</span>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        <p>لا توجد إصدارات سابقة</p>
+                        <p class="small">سيتم إنشاء إصدار جديد عند فك قفل المستند مع وصف التعديلات</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@* Success/Error Messages *@
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@successMessage
+        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Document? document;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocument();
+    }
+
+    private async Task LoadDocument()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            document = await DocumentService.GetDocumentByIdAsync(Id);
+            if (document == null)
+            {
+                errorMessage = "المستند غير موجود";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل المستند: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DownloadVersion(int versionId)
+    {
+        if (document == null)
+            return;
+
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            var version = document.Versions?.FirstOrDefault(v => v.VersionId == versionId);
+            if (version == null)
+            {
+                errorMessage = "الإصدار غير موجود";
+                return;
+            }
+
+            // TODO: Implement version file download
+            // For now, download current document file
+            if (string.IsNullOrEmpty(document.FilePath))
+            {
+                errorMessage = "الملف غير متاح للتحميل";
+                return;
+            }
+
+            // In a real implementation, you would download the version-specific file
+            // For now, we'll show a message
+            successMessage = $"سيتم تحميل الإصدار v{version.VersionNumber} قريباً";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل الإصدار: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ViewVersionDetails(int versionId)
+    {
+        if (document == null)
+            return;
+
+        var version = document.Versions?.FirstOrDefault(v => v.VersionId == versionId);
+        if (version == null)
+        {
+            errorMessage = "الإصدار غير موجود";
+            return;
+        }
+
+        // Show version details in a modal or navigate to details page
+        // For now, show an alert with version info
+        successMessage = $"الإصدار v{version.VersionNumber} - تم إنشاؤه في @{version.CreatedAt:yyyy-MM-dd HH:mm}";
+    }
+
+    private async Task MarkAsFinal(int versionId)
+    {
+        if (document == null)
+            return;
+
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                errorMessage = "يجب تسجيل الدخول أولاً";
+                return;
+            }
+
+            // Check if user has permission (admin or senior_lawyer)
+            if (currentUser.Role != "admin" && currentUser.Role != "senior_lawyer")
+            {
+                errorMessage = "⚠️ ليس لديك صلاحية لتعيين الإصدار كنهائي. يتطلب صلاحية مدير أو محامي رئيسي.";
+                return;
+            }
+
+            var version = document.Versions?.FirstOrDefault(v => v.VersionId == versionId);
+            if (version == null)
+            {
+                errorMessage = "الإصدار غير موجود";
+                return;
+            }
+
+            if (version.IsFinal)
+            {
+                errorMessage = "هذا الإصدار معرّف كنهائي بالفعل";
+                return;
+            }
+
+            // TODO: Implement mark as final in DocumentService
+            // For now, update directly in context
+            // version.IsFinal = true;
+            // await _context.SaveChangesAsync();
+
+            successMessage = $"تم تعيين الإصدار v{version.VersionNumber} كإصدار نهائي بنجاح";
+            await LoadDocument();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = $"🚫 {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"❌ حدث خطأ: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+

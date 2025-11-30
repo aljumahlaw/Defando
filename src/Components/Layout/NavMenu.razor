@@ -1,0 +1,62 @@
+<div class="nav-menu">
+    <div class="nav-menu-header p-3 text-white">
+        <h5 class="mb-0">القائمة</h5>
+    </div>
+    <nav class="nav flex-column p-2">
+        <NavLink href="/" Match="NavLinkMatch.All" class="nav-link">
+            <i class="bi bi-speedometer2 me-2"></i>لوحة التحكم
+        </NavLink>
+        <NavLink href="/documents" class="nav-link">
+            <i class="bi bi-folder me-2"></i>المستندات
+        </NavLink>
+        <NavLink href="/search" class="nav-link">
+            <i class="bi bi-search me-2"></i>البحث
+        </NavLink>
+        <NavLink href="/upload" class="nav-link">
+            <i class="bi bi-upload me-2"></i>رفع ملفات
+        </NavLink>
+        <NavLink href="/tasks" class="nav-link">
+            <i class="bi bi-list-check me-2"></i>المهام
+        </NavLink>
+        <NavLink href="/outgoing" class="nav-link">
+            <i class="bi bi-send me-2"></i>الصادر
+        </NavLink>
+        <NavLink href="/incoming" class="nav-link">
+            <i class="bi bi-inbox me-2"></i>الوارد
+        </NavLink>
+        <NavLink href="/settings" class="nav-link">
+            <i class="bi bi-gear me-2"></i>الإعدادات
+        </NavLink>
+    </nav>
+</div>
+
+<style>
+    .nav-menu {
+        height: 100%;
+    }
+
+    .nav-menu-header {
+        background-color: #1a1d20;
+        border-bottom: 1px solid #343a40;
+    }
+
+    .nav-link {
+        color: #adb5bd;
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 0.25rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+        background-color: #343a40;
+        color: #ffffff;
+    }
+
+    .nav-link.active {
+        background-color: #0d6efd;
+        color: #ffffff;
+    }
+</style>
+

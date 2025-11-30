@@ -1,0 +1,706 @@
+@page "/incoming"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IIncomingService IncomingService
+@inject IDocumentService DocumentService
+@inject IAuthService AuthService
+@inject INotificationService NotificationService
+@inject NavigationManager Navigation
+
+<PageTitle>إدارة الوارد</PageTitle>
+
+<div class="container-fluid" dir="rtl">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-inbox me-2"></i>إدارة المراسلات الواردة</h2>
+        @if (canCreate)
+        {
+            <button class="btn btn-primary" @onclick="ShowAddModal">
+                <i class="bi bi-plus-circle me-2"></i>إضافة وارد جديد
+            </button>
+        }
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="filterStartDate" class="form-label">من تاريخ</label>
+                    <InputDate id="filterStartDate" class="form-control" @bind-Value="filterStartDate" />
+                </div>
+                <div class="col-md-3">
+                    <label for="filterEndDate" class="form-label">إلى تاريخ</label>
+                    <InputDate id="filterEndDate" class="form-control" @bind-Value="filterEndDate" />
+                </div>
+                <div class="col-md-3">
+                    <label for="filterSender" class="form-label">الجهة المرسلة</label>
+                    <InputText id="filterSender" class="form-control" @bind-Value="filterSender" placeholder="ابحث عن جهة..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="filterPriority" class="form-label">الأولوية</label>
+                    <select id="filterPriority" class="form-select" @bind="filterPriority">
+                        <option value="">جميع الأولويات</option>
+                        <option value="normal">عادي</option>
+                        <option value="urgent">عاجل</option>
+                        <option value="confidential">سري</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button class="btn btn-primary me-2" @onclick="ApplyFilters">
+                        <i class="bi bi-funnel me-2"></i>تطبيق الفلاتر
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle me-2"></i>مسح الفلاتر
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>رقم الوارد</th>
+                                <th>التاريخ</th>
+                                <th>الجهة المرسلة</th>
+                                <th>الموضوع</th>
+                                <th>الأولوية</th>
+                                <th>يتطلب رد</th>
+                                <th>المستند المرتبط</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (incomingList == null || !incomingList.Any())
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        لا توجد مراسلات واردة
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var incoming in incomingList)
+                                {
+                                    <tr>
+                                        <td><strong>@incoming.IncomingNumber</strong></td>
+                                        <td>@incoming.ReceivedDate.ToString("yyyy-MM-dd")</td>
+                                        <td>@incoming.SenderName</td>
+                                        <td>@incoming.Subject</td>
+                                        <td>
+                                            @GetPriorityBadge(incoming.Priority)
+                                        </td>
+                                        <td>
+                                            @if (incoming.RequiresResponse)
+                                            {
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-exclamation-circle me-1"></i>نعم
+                                                    @if (incoming.ResponseDeadline.HasValue)
+                                                    {
+                                                        <br><small>@incoming.ResponseDeadline.Value.ToString("yyyy-MM-dd")</small>
+                                                    }
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">لا</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (incoming.Document != null)
+                                            {
+                                                <a href="/documents/@incoming.Document.DocumentId" class="text-decoration-none">
+                                                    <i class="bi bi-file-earmark-text me-1"></i>@incoming.Document.DocumentName
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-info" @onclick="() => ShowDetailsModal(incoming.IncomingId)" title="عرض التفاصيل">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                @if (canEdit)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditModal(incoming.IncomingId)" title="تعديل">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                }
+                                                @if (canDelete)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(incoming.IncomingId)" title="حذف">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Add/Edit Modal -->
+    @if (showModal)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            @(isEditMode ? "تعديل وارد" : "إضافة وارد جديد")
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <EditForm Model="@incomingModel" OnValidSubmit="@HandleSave">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="alert alert-danger" role="alert" />
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="incomingNumber" class="form-label">رقم الوارد <span class="text-danger">*</span></label>
+                                    <InputText id="incomingNumber" class="form-control" @bind-Value="incomingModel.IncomingNumber" />
+                                    <ValidationMessage For="@(() => incomingModel.IncomingNumber)" />
+                                    <small class="form-text text-muted">سيتم توليد الرقم تلقائياً إذا تركت الحقل فارغاً</small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="receivedDate" class="form-label">تاريخ الاستلام <span class="text-danger">*</span></label>
+                                    <InputDate id="receivedDate" class="form-control" @bind-Value="incomingModel.ReceivedDate" />
+                                    <ValidationMessage For="@(() => incomingModel.ReceivedDate)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="senderName" class="form-label">الجهة المرسلة <span class="text-danger">*</span></label>
+                                    <InputText id="senderName" class="form-control" @bind-Value="incomingModel.SenderName" />
+                                    <ValidationMessage For="@(() => incomingModel.SenderName)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="senderAddress" class="form-label">عنوان الجهة</label>
+                                    <InputText id="senderAddress" class="form-control" @bind-Value="incomingModel.SenderAddress" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label for="subject" class="form-label">الموضوع <span class="text-danger">*</span></label>
+                                    <InputText id="subject" class="form-control" @bind-Value="incomingModel.Subject" />
+                                    <ValidationMessage For="@(() => incomingModel.Subject)" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="originalNumber" class="form-label">الرقم الأصلي</label>
+                                    <InputText id="originalNumber" class="form-control" @bind-Value="incomingModel.OriginalNumber" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="priority" class="form-label">الأولوية</label>
+                                    <select id="priority" class="form-select" @bind="incomingModel.Priority">
+                                        <option value="normal">عادي</option>
+                                        <option value="urgent">عاجل</option>
+                                        <option value="confidential">سري</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="documentId" class="form-label">ربط مستند</label>
+                                    <select id="documentId" class="form-select" @bind="incomingModel.DocumentId">
+                                        <option value="">-- اختر مستند --</option>
+                                        @if (documents != null)
+                                        {
+                                            @foreach (var doc in documents)
+                                            {
+                                                <option value="@doc.DocumentId">@doc.DocumentName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mt-4">
+                                        <InputCheckbox id="requiresResponse" class="form-check-input" @bind-Value="incomingModel.RequiresResponse" />
+                                        <label class="form-check-label" for="requiresResponse">
+                                            يتطلب رد
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="responseDeadline" class="form-label">موعد الرد</label>
+                                    <InputDate id="responseDeadline" class="form-control" @bind-Value="incomingModel.ResponseDeadline" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label for="notes" class="form-label">ملاحظات</label>
+                                    <InputTextArea id="notes" class="form-control" rows="3" @bind-Value="incomingModel.Notes" />
+                                </div>
+                            </div>
+
+                            <div class="modal-footer mt-4">
+                                <button type="button" class="btn btn-secondary" @onclick="CloseModal">إلغاء</button>
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    @(isEditMode ? "تحديث" : "حفظ")
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Details Modal -->
+    @if (showDetailsModal && selectedIncoming != null)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">تفاصيل الوارد</h5>
+                        <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <strong>رقم الوارد:</strong>
+                                <p>@selectedIncoming.IncomingNumber</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>تاريخ الاستلام:</strong>
+                                <p>@selectedIncoming.ReceivedDate.ToString("yyyy-MM-dd")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>الجهة المرسلة:</strong>
+                                <p>@selectedIncoming.SenderName</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>عنوان الجهة:</strong>
+                                <p>@(selectedIncoming.SenderAddress ?? "-")</p>
+                            </div>
+                            <div class="col-md-12">
+                                <strong>الموضوع:</strong>
+                                <p>@selectedIncoming.Subject</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>الرقم الأصلي:</strong>
+                                <p>@(selectedIncoming.OriginalNumber ?? "-")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>الأولوية:</strong>
+                                <p>@GetPriorityBadge(selectedIncoming.Priority)</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>يتطلب رد:</strong>
+                                <p>
+                                    @if (selectedIncoming.RequiresResponse)
+                                    {
+                                        <span class="badge bg-warning">نعم</span>
+                                        @if (selectedIncoming.ResponseDeadline.HasValue)
+                                        {
+                                            <br><small>موعد الرد: @selectedIncoming.ResponseDeadline.Value.ToString("yyyy-MM-dd")</small>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">لا</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>المستند المرتبط:</strong>
+                                <p>
+                                    @if (selectedIncoming.Document != null)
+                                    {
+                                        <a href="/documents/@selectedIncoming.Document.DocumentId" class="text-decoration-none">
+                                            <i class="bi bi-file-earmark-text me-1"></i>@selectedIncoming.Document.DocumentName
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>أنشئ بواسطة:</strong>
+                                <p>@(selectedIncoming.CreatedByUser?.FullName ?? "-")</p>
+                            </div>
+                            <div class="col-md-12">
+                                <strong>ملاحظات:</strong>
+                                <p>@(selectedIncoming.Notes ?? "-")</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">إغلاق</button>
+                        @if (canEdit)
+                        {
+                            <button type="button" class="btn btn-primary" @onclick="() => { CloseDetailsModal(); ShowEditModal(selectedIncoming.IncomingId); }">
+                                <i class="bi bi-pencil me-2"></i>تعديل
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Incoming>? incomingList;
+    private List<Document>? documents;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private bool showModal = false;
+    private bool showDetailsModal = false;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private Incoming? selectedIncoming;
+    private IncomingModel incomingModel = new();
+
+    // Filters
+    private DateTime? filterStartDate;
+    private DateTime? filterEndDate;
+    private string? filterSender;
+    private string? filterPriority;
+
+    // Permissions
+    private bool canCreate = false;
+    private bool canEdit = false;
+    private bool canDelete = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckPermissions();
+        await LoadDocuments();
+        await LoadIncoming();
+    }
+
+    private async Task CheckPermissions()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser != null)
+        {
+            var role = currentUser.Role.ToLower();
+            canCreate = role == "admin" || role == "senior_lawyer" || role == "archiving";
+            canEdit = role == "admin" || role == "senior_lawyer" || role == "archiving";
+            canDelete = role == "admin" || role == "senior_lawyer";
+        }
+    }
+
+    private async Task LoadDocuments()
+    {
+        try
+        {
+            documents = await DocumentService.GetAllDocumentsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error silently or use NotificationService if needed
+        }
+    }
+
+    private async Task LoadIncoming()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            if (HasActiveFilters())
+            {
+                incomingList = await IncomingService.SearchIncomingAsync(
+                    startDate: filterStartDate,
+                    endDate: filterEndDate,
+                    senderName: filterSender,
+                    priority: filterPriority);
+            }
+            else
+            {
+                incomingList = await IncomingService.GetAllIncomingAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل البيانات: {ex.Message}";
+            NotificationService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool HasActiveFilters()
+    {
+        return filterStartDate.HasValue || filterEndDate.HasValue ||
+               !string.IsNullOrWhiteSpace(filterSender) ||
+               !string.IsNullOrWhiteSpace(filterPriority);
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadIncoming();
+    }
+
+    private async Task ClearFilters()
+    {
+        filterStartDate = null;
+        filterEndDate = null;
+        filterSender = null;
+        filterPriority = null;
+        await LoadIncoming();
+    }
+
+    private void ShowAddModal()
+    {
+        isEditMode = false;
+        incomingModel = new IncomingModel
+        {
+            ReceivedDate = DateTime.Now.Date,
+            Priority = "normal"
+        };
+        showModal = true;
+    }
+
+    private async Task ShowEditModal(int id)
+    {
+        try
+        {
+            var incoming = await IncomingService.GetIncomingByIdAsync(id);
+            if (incoming != null)
+            {
+                isEditMode = true;
+                incomingModel = new IncomingModel
+                {
+                    IncomingId = incoming.IncomingId,
+                    IncomingNumber = incoming.IncomingNumber,
+                    ReceivedDate = incoming.ReceivedDate,
+                    SenderName = incoming.SenderName,
+                    SenderAddress = incoming.SenderAddress,
+                    Subject = incoming.Subject,
+                    OriginalNumber = incoming.OriginalNumber,
+                    Priority = incoming.Priority,
+                    RequiresResponse = incoming.RequiresResponse,
+                    ResponseDeadline = incoming.ResponseDeadline,
+                    DocumentId = incoming.DocumentId,
+                    Notes = incoming.Notes
+                };
+                showModal = true;
+            }
+            else
+            {
+                NotificationService.ShowError("لم يتم العثور على السجل");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"حدث خطأ: {ex.Message}");
+        }
+    }
+
+    private async Task ShowDetailsModal(int id)
+    {
+        try
+        {
+            selectedIncoming = await IncomingService.GetIncomingByIdAsync(id);
+            if (selectedIncoming != null)
+            {
+                showDetailsModal = true;
+            }
+            else
+            {
+                NotificationService.ShowError("لم يتم العثور على السجل");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"حدث خطأ: {ex.Message}");
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        incomingModel = new IncomingModel();
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedIncoming = null;
+    }
+
+    private async Task HandleSave()
+    {
+        isSaving = true;
+
+        try
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                NotificationService.ShowError("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            var incoming = new Incoming
+            {
+                IncomingId = incomingModel.IncomingId,
+                IncomingNumber = incomingModel.IncomingNumber,
+                ReceivedDate = incomingModel.ReceivedDate,
+                SenderName = incomingModel.SenderName,
+                SenderAddress = incomingModel.SenderAddress,
+                Subject = incomingModel.Subject,
+                OriginalNumber = incomingModel.OriginalNumber,
+                Priority = incomingModel.Priority,
+                RequiresResponse = incomingModel.RequiresResponse,
+                ResponseDeadline = incomingModel.ResponseDeadline,
+                DocumentId = incomingModel.DocumentId == 0 ? null : incomingModel.DocumentId,
+                Notes = incomingModel.Notes,
+                CreatedBy = currentUser.UserId
+            };
+
+            if (isEditMode)
+            {
+                await IncomingService.UpdateIncomingAsync(incoming);
+                NotificationService.ShowSuccess("تم تحديث الوارد بنجاح");
+            }
+            else
+            {
+                await IncomingService.CreateIncomingAsync(incoming);
+                NotificationService.ShowSuccess("تم إضافة الوارد بنجاح");
+            }
+
+            CloseModal();
+            await LoadIncoming();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"حدث خطأ أثناء الحفظ: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        if (!canDelete)
+        {
+            NotificationService.ShowError("ليس لديك صلاحية للحذف");
+            return;
+        }
+
+        // Simple confirmation - in production, use a proper confirmation dialog
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "هل أنت متأكد من حذف هذا السجل؟"))
+        {
+            try
+            {
+                await IncomingService.DeleteIncomingAsync(id);
+                NotificationService.ShowSuccess("تم حذف الوارد بنجاح");
+                await LoadIncoming();
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowError($"حدث خطأ أثناء الحذف: {ex.Message}");
+            }
+        }
+    }
+
+    private RenderFragment GetPriorityBadge(string priority)
+    {
+        return builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", priority switch
+            {
+                "urgent" => "badge bg-danger",
+                "confidential" => "badge bg-warning",
+                _ => "badge bg-secondary"
+            });
+            builder.AddContent(2, priority switch
+            {
+                "urgent" => "عاجل",
+                "confidential" => "سري",
+                _ => "عادي"
+            });
+            builder.CloseElement();
+        };
+    }
+
+    private class IncomingModel
+    {
+        public int IncomingId { get; set; }
+
+        [MaxLength(60)]
+        public string IncomingNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "تاريخ الاستلام مطلوب")]
+        public DateTime ReceivedDate { get; set; } = DateTime.Now.Date;
+
+        [Required(ErrorMessage = "الجهة المرسلة مطلوبة")]
+        [MaxLength(200, ErrorMessage = "الحد الأقصى 200 حرف")]
+        public string SenderName { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string? SenderAddress { get; set; }
+
+        [Required(ErrorMessage = "الموضوع مطلوب")]
+        [MaxLength(500, ErrorMessage = "الحد الأقصى 500 حرف")]
+        public string Subject { get; set; } = string.Empty;
+
+        [MaxLength(120)]
+        public string? OriginalNumber { get; set; }
+
+        [MaxLength(20)]
+        public string Priority { get; set; } = "normal";
+
+        public bool RequiresResponse { get; set; }
+
+        public DateTime? ResponseDeadline { get; set; }
+
+        public int? DocumentId { get; set; }
+
+        public string? Notes { get; set; }
+    }
+
+    [Inject] private IJSRuntime? JSRuntime { get; set; }
+}
+

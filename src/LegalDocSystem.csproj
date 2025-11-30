@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LegalDocSystem</RootNamespace>
+    <UserSecretsId>LegalDocSystem-2025-01-15</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Entity Framework Core -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
+    
+    <!-- Hangfire for Background Jobs -->
+    <PackageReference Include="Hangfire.Core" Version="1.8.6" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.6" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.20.6" />
+    
+    <!-- BCrypt for Password Hashing -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    
+    <!-- MailKit for Email -->
+    <PackageReference Include="MailKit" Version="4.3.0" />
+    
+    <!-- Tesseract OCR (TODO: Uncomment when ready to use) -->
+    <!-- <PackageReference Include="Tesseract" Version="5.2.0" /> -->
+  </ItemGroup>
+
+</Project>
+

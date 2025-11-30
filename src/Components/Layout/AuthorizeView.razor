@@ -1,0 +1,50 @@
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+@if (isAuthorized)
+{
+    @ChildContent
+}
+else
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">جاري التحقق...</span>
+        </div>
+        <p class="mt-2 text-muted">جاري التحقق من صلاحيات الوصول...</p>
+    </div>
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? RequiredRole { get; set; }
+
+    private bool isAuthorized = false;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        // Check role if specified
+        if (!string.IsNullOrEmpty(RequiredRole))
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser == null || currentUser.Role != RequiredRole)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
+        }
+
+        isAuthorized = true;
+        isLoading = false;
+    }
+}
+

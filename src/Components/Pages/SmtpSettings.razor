@@ -1,0 +1,590 @@
+@page "/settings/smtp"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject IEmailService EmailService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>إعدادات SMTP</PageTitle>
+
+<style>
+    .smtp-settings-card {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .test-result {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 0.375rem;
+    }
+
+    .test-result.success {
+        background-color: #d1e7dd;
+        border: 1px solid #badbcc;
+        color: #0f5132;
+    }
+
+    .test-result.error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c2c7;
+        color: #842029;
+    }
+
+    .password-toggle {
+        cursor: pointer;
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+</style>
+
+<div class="container-fluid" dir="rtl">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="bi bi-envelope-at me-2"></i>إعدادات SMTP
+                </h2>
+                <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo(\"/settings\")">
+                    <i class="bi bi-arrow-right me-2"></i>العودة للإعدادات
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (!isAuthorized)
+    {
+        <div class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            يجب أن تكون مسجلاً كمدير للوصول إلى هذه الصفحة.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card smtp-settings-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-gear me-2"></i>تكوين خادم البريد الإلكتروني
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="@smtpSettings" OnValidSubmit="@HandleSave" OnInvalidSubmit="@HandleInvalidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="alert alert-danger" role="alert" />
+
+                            <!-- Enable/Disable SMTP -->
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        id="smtpEnabled"
+                                        @bind="smtpSettings.Enabled"
+                                        role="switch" />
+                                    <label class="form-check-label" for="smtpEnabled">
+                                        <strong>تفعيل إرسال البريد الإلكتروني</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    قم بتعطيل هذه الميزة لإيقاف جميع عمليات إرسال البريد
+                                </small>
+                            </div>
+
+                            <hr />
+
+                            <!-- SMTP Host -->
+                            <div class="mb-3">
+                                <label for="smtpHost" class="form-label fw-bold">
+                                    <i class="bi bi-server me-1"></i>خادم SMTP <span class="text-danger">*</span>
+                                </label>
+                                <InputText 
+                                    id="smtpHost"
+                                    class="form-control" 
+                                    @bind-Value="smtpSettings.Host" 
+                                    placeholder="مثال: smtp.gmail.com"
+                                    aria-label="خادم SMTP"
+                                    aria-required="true" />
+                                <ValidationMessage For="@(() => smtpSettings.Host)" />
+                                <small class="form-text text-muted">
+                                    عنوان خادم SMTP (مثال: smtp.gmail.com, smtp.outlook.com)
+                                </small>
+                            </div>
+
+                            <!-- SMTP Port -->
+                            <div class="mb-3">
+                                <label for="smtpPort" class="form-label fw-bold">
+                                    <i class="bi bi-hdd-network me-1"></i>المنفذ (Port) <span class="text-danger">*</span>
+                                </label>
+                                <InputNumber 
+                                    id="smtpPort"
+                                    class="form-control" 
+                                    @bind-Value="smtpSettings.Port" 
+                                    placeholder="587"
+                                    aria-label="منفذ SMTP"
+                                    aria-required="true" />
+                                <ValidationMessage For="@(() => smtpSettings.Port)" />
+                                <small class="form-text text-muted">
+                                    منفذ SMTP (عادة 587 لـ TLS أو 465 لـ SSL)
+                                </small>
+                            </div>
+
+                            <!-- SMTP Username -->
+                            <div class="mb-3">
+                                <label for="smtpUsername" class="form-label fw-bold">
+                                    <i class="bi bi-person me-1"></i>اسم المستخدم <span class="text-danger">*</span>
+                                </label>
+                                <InputText 
+                                    id="smtpUsername"
+                                    class="form-control" 
+                                    @bind-Value="smtpSettings.Username" 
+                                    placeholder="your-email@example.com"
+                                    aria-label="اسم مستخدم SMTP"
+                                    aria-required="true" />
+                                <ValidationMessage For="@(() => smtpSettings.Username)" />
+                                <small class="form-text text-muted">
+                                    عنوان البريد الإلكتروني أو اسم المستخدم لخادم SMTP
+                                </small>
+                            </div>
+
+                            <!-- SMTP Password -->
+                            <div class="mb-3">
+                                <label for="smtpPassword" class="form-label fw-bold">
+                                    <i class="bi bi-key me-1"></i>كلمة المرور <span class="text-danger">*</span>
+                                </label>
+                                <div class="position-relative">
+                                    <InputText 
+                                        id="smtpPassword"
+                                        type="@(showPassword ? "text" : "password")"
+                                        class="form-control" 
+                                        @bind-Value="smtpSettings.Password" 
+                                        placeholder="أدخل كلمة المرور"
+                                        aria-label="كلمة مرور SMTP"
+                                        aria-required="true" />
+                                    <span 
+                                        class="password-toggle" 
+                                        @onclick="TogglePasswordVisibility"
+                                        role="button"
+                                        tabindex="0"
+                                        @onkeypress="@((e) => { if (e.Key == "Enter") TogglePasswordVisibility(); })"
+                                        aria-label="@(showPassword ? "إخفاء" : "إظهار") كلمة المرور">
+                                        <i class="bi @(showPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                                    </span>
+                                </div>
+                                <ValidationMessage For="@(() => smtpSettings.Password)" />
+                                <small class="form-text text-muted">
+                                    كلمة مرور SMTP (لـ Gmail، استخدم "App Password" بدلاً من كلمة المرور العادية)
+                                </small>
+                            </div>
+
+                            <!-- Use SSL -->
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        id="smtpUseSsl"
+                                        @bind="smtpSettings.UseSsl"
+                                        role="switch" />
+                                    <label class="form-check-label" for="smtpUseSsl">
+                                        <strong>استخدام SSL/TLS</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    تفعيل التشفير SSL/TLS للاتصال الآمن
+                                </small>
+                            </div>
+
+                            <hr />
+
+                            <!-- Email Notification Settings -->
+                            <h6 class="mb-3 mt-4">
+                                <i class="bi bi-bell me-2"></i>إعدادات الإشعارات
+                            </h6>
+
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        id="notifySharedLinkCreated"
+                                        @bind="smtpSettings.NotifyOnSharedLinkCreated"
+                                        role="switch" />
+                                    <label class="form-check-label" for="notifySharedLinkCreated">
+                                        <strong>إشعار عند إنشاء رابط مشاركة</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    إرسال بريد إلكتروني عند إنشاء رابط مشاركة جديد
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        id="notifySharedLinkAccessed"
+                                        @bind="smtpSettings.NotifyOnSharedLinkAccessed"
+                                        role="switch" />
+                                    <label class="form-check-label" for="notifySharedLinkAccessed">
+                                        <strong>إشعار عند الوصول إلى رابط مشاركة</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    إرسال بريد إلكتروني عند وصول مستخدم إلى رابط مشاركة
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        id="notifyTaskReminder"
+                                        @bind="smtpSettings.NotifyOnTaskReminder"
+                                        role="switch" />
+                                    <label class="form-check-label" for="notifyTaskReminder">
+                                        <strong>إشعارات تذكير المهام</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    إرسال بريد إلكتروني لتذكير المستخدمين بالمهام القريبة من الاستحقاق
+                                </small>
+                            </div>
+
+                            <hr />
+
+                            <!-- From Name -->
+                            <div class="mb-3">
+                                <label for="fromName" class="form-label fw-bold">
+                                    <i class="bi bi-person-badge me-1"></i>اسم المرسل
+                                </label>
+                                <InputText 
+                                    id="fromName"
+                                    class="form-control" 
+                                    @bind-Value="smtpSettings.FromName" 
+                                    placeholder="نظام إدارة المستندات القانونية"
+                                    aria-label="اسم المرسل" />
+                                <small class="form-text text-muted">
+                                    الاسم الذي سيظهر كمرسل في الرسائل الإلكترونية
+                                </small>
+                            </div>
+
+                            <!-- From Address -->
+                            <div class="mb-3">
+                                <label for="fromAddress" class="form-label fw-bold">
+                                    <i class="bi bi-envelope me-1"></i>عنوان المرسل <span class="text-danger">*</span>
+                                </label>
+                                <InputText 
+                                    id="fromAddress"
+                                    type="email"
+                                    class="form-control" 
+                                    @bind-Value="smtpSettings.FromAddress" 
+                                    placeholder="noreply@example.com"
+                                    aria-label="عنوان بريد المرسل"
+                                    aria-required="true" />
+                                <ValidationMessage For="@(() => smtpSettings.FromAddress)" />
+                                <small class="form-text text-muted">
+                                    عنوان البريد الإلكتروني الذي سيظهر كمرسل
+                                </small>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2 mt-4">
+                                <button 
+                                    type="submit" 
+                                    class="btn btn-primary flex-grow-1" 
+                                    disabled="@isSaving"
+                                    aria-label="حفظ الإعدادات">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-save me-2"></i>
+                                    }
+                                    حفظ الإعدادات
+                                </button>
+                                <button 
+                                    type="button" 
+                                    class="btn btn-success" 
+                                    @onclick="HandleTestEmail"
+                                    disabled="@isTesting || isSaving"
+                                    aria-label="اختبار إرسال البريد">
+                                    @if (isTesting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-envelope-check me-2"></i>
+                                    }
+                                    اختبار الإرسال
+                                </button>
+                            </div>
+                        </EditForm>
+
+                        <!-- Test Result -->
+                        @if (!string.IsNullOrEmpty(testResult))
+                        {
+                            <div class="test-result @(testSuccess ? "success" : "error")" role="alert">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi @(testSuccess ? "bi-check-circle-fill" : "bi-x-circle-fill") me-2 fs-5"></i>
+                                    <div>
+                                        <strong>@(testSuccess ? "نجح الاختبار" : "فشل الاختبار")</strong>
+                                        <p class="mb-0 mt-1">@testResult</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Success/Error Messages -->
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                                <i class="bi bi-check-circle me-2"></i>@successMessage
+                                <button type="button" class="btn-close" @onclick="() => successMessage = null" aria-label="إغلاق"></button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                                <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                                <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="إغلاق"></button>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="card mt-4 smtp-settings-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-question-circle me-2"></i>مساعدة
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>إعدادات Gmail:</h6>
+                        <ul>
+                            <li><strong>Host:</strong> smtp.gmail.com</li>
+                            <li><strong>Port:</strong> 587 (TLS) أو 465 (SSL)</li>
+                            <li><strong>Username:</strong> عنوان بريدك الإلكتروني</li>
+                            <li><strong>Password:</strong> استخدم "App Password" وليس كلمة المرور العادية</li>
+                            <li><strong>Use SSL:</strong> ✓ مفعل</li>
+                        </ul>
+                        <p class="small text-muted">
+                            لإنشاء App Password في Gmail: إعدادات الحساب → الأمان → كلمات مرور التطبيقات
+                        </p>
+
+                        <h6 class="mt-3">إعدادات Outlook/Office 365:</h6>
+                        <ul>
+                            <li><strong>Host:</strong> smtp.office365.com</li>
+                            <li><strong>Port:</strong> 587</li>
+                            <li><strong>Username:</strong> عنوان بريدك الإلكتروني</li>
+                            <li><strong>Password:</strong> كلمة المرور العادية</li>
+                            <li><strong>Use SSL:</strong> ✓ مفعل</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private SmtpSettings smtpSettings = new();
+    private bool isSaving = false;
+    private bool isTesting = false;
+    private bool isAuthorized = false;
+    private bool showPassword = false;
+    private string? successMessage;
+    private string? errorMessage;
+    private string? testResult;
+    private bool testSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check authorization (admin only)
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        isAuthorized = currentUser?.Role == "admin";
+
+        if (isAuthorized)
+        {
+            await LoadSettings();
+        }
+    }
+
+    private async Task LoadSettings()
+    {
+        try
+        {
+            var settings = await EmailService.GetSmtpSettingsAsync();
+            if (settings != null)
+            {
+                smtpSettings = settings;
+                // Don't show password, use placeholder
+                if (!string.IsNullOrEmpty(smtpSettings.Password))
+                {
+                    smtpSettings.Password = "********"; // Placeholder
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل الإعدادات: {ex.Message}";
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        isSaving = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            // Validate settings
+            var isValid = await EmailService.ValidateSmtpSettingsAsync();
+            if (!isValid && smtpSettings.Enabled)
+            {
+                errorMessage = "الإعدادات غير صحيحة. يرجى التحقق من جميع الحقول المطلوبة.";
+                isSaving = false;
+                return;
+            }
+
+            // If password is placeholder, don't update it
+            if (smtpSettings.Password == "********")
+            {
+                // Reload settings to get actual password
+                var currentSettings = await EmailService.GetSmtpSettingsAsync();
+                if (currentSettings != null)
+                {
+                    smtpSettings.Password = currentSettings.Password;
+                }
+            }
+
+            await EmailService.SaveSmtpSettingsAsync(smtpSettings);
+            successMessage = "تم حفظ الإعدادات بنجاح!";
+
+            // Reload to show updated settings
+            await LoadSettings();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء حفظ الإعدادات: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void HandleInvalidSubmit()
+    {
+        errorMessage = "يرجى التحقق من جميع الحقول المطلوبة وإصلاح الأخطاء.";
+    }
+
+    private async Task HandleTestEmail()
+    {
+        isTesting = true;
+        testResult = null;
+        testSuccess = false;
+        errorMessage = null;
+
+        try
+        {
+            // Validate settings first
+            if (string.IsNullOrWhiteSpace(smtpSettings.Host) ||
+                smtpSettings.Port <= 0 ||
+                string.IsNullOrWhiteSpace(smtpSettings.Username) ||
+                string.IsNullOrWhiteSpace(smtpSettings.Password) ||
+                string.IsNullOrWhiteSpace(smtpSettings.FromAddress))
+            {
+                testResult = "يرجى ملء جميع الحقول المطلوبة أولاً.";
+                testSuccess = false;
+                isTesting = false;
+                return;
+            }
+
+            // Get test email from user
+            var testEmail = await JSRuntime.InvokeAsync<string>("prompt", 
+                "أدخل عنوان البريد الإلكتروني لإرسال رسالة الاختبار إليه:", 
+                smtpSettings.FromAddress);
+
+            if (string.IsNullOrWhiteSpace(testEmail))
+            {
+                testResult = "تم إلغاء الاختبار.";
+                testSuccess = false;
+                isTesting = false;
+                return;
+            }
+
+            // Validate email format
+            if (!IsValidEmail(testEmail))
+            {
+                testResult = "عنوان البريد الإلكتروني غير صحيح.";
+                testSuccess = false;
+                isTesting = false;
+                return;
+            }
+
+            // Save settings first if not saved
+            if (smtpSettings.Password != "********")
+            {
+                await EmailService.SaveSmtpSettingsAsync(smtpSettings);
+            }
+
+            // Send test email
+            var result = await EmailService.SendTestEmailAsync(testEmail);
+
+            if (result)
+            {
+                testResult = $"تم إرسال رسالة الاختبار بنجاح إلى {testEmail}. يرجى التحقق من صندوق الوارد.";
+                testSuccess = true;
+            }
+            else
+            {
+                testResult = $"فشل إرسال رسالة الاختبار. يرجى التحقق من الإعدادات والتأكد من صحة بيانات SMTP.";
+                testSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            testResult = $"حدث خطأ أثناء الاختبار: {ex.Message}";
+            testSuccess = false;
+        }
+        finally
+        {
+            isTesting = false;
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email);
+            return addr.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+

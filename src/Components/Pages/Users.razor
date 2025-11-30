@@ -1,0 +1,189 @@
+@page "/users"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<PageTitle>المستخدمون</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>إدارة المستخدمين</h2>
+        <button class="btn btn-primary" @onclick="NavigateToAdd">
+            <i class="bi bi-plus-circle me-2"></i>إضافة مستخدم جديد
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري التحميل...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>اسم المستخدم</th>
+                                <th>الاسم الكامل</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>الدور</th>
+                                <th>الحالة</th>
+                                <th>تاريخ الإنشاء</th>
+                                <th>آخر دخول</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (users.Any())
+                            {
+                                @foreach (var user in users)
+                                {
+                                    <tr>
+                                        <td>@user.Username</td>
+                                        <td>@user.FullName</td>
+                                        <td>@(user.Email ?? "-")</td>
+                                        <td>
+                                            @GetRoleBadge(user.Role)
+                                        </td>
+                                        <td>
+                                            @if (user.IsActive)
+                                            {
+                                                <span class="badge bg-success">نشط</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">معطل</span>
+                                            }
+                                        </td>
+                                        <td>@user.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                        <td>
+                                            @if (user.LastLogin.HasValue)
+                                            {
+                                                @user.LastLogin.Value.ToString("yyyy-MM-dd HH:mm")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">لم يسجل دخول</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => ViewUser(user.UserId)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-warning me-1" @onclick="() => EditUser(user.UserId)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-@(user.IsActive ? "secondary" : "success")" @onclick="() => ToggleUserStatus(user.UserId, user.IsActive)">
+                                                <i class="bi bi-@(user.IsActive ? "x-circle" : "check-circle")"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="bi bi-people fs-1 d-block mb-2"></i>
+                                        لا يوجد مستخدمون
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<User> users = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            users = await UserService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل المستخدمين: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void NavigateToAdd()
+    {
+        Navigation.NavigateTo("/users/add");
+    }
+
+    private void ViewUser(int id)
+    {
+        Navigation.NavigateTo($"/users/{id}");
+    }
+
+    private void EditUser(int id)
+    {
+        Navigation.NavigateTo($"/users/{id}/edit");
+    }
+
+    private async Task ToggleUserStatus(int id, bool currentStatus)
+    {
+        try
+        {
+            // TODO: Implement toggle user status
+            // var user = await UserService.GetUserByIdAsync(id);
+            // if (user != null)
+            // {
+            //     user.IsActive = !currentStatus;
+            //     await UserService.UpdateUserAsync(user);
+            //     await LoadUsers();
+            // }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحديث حالة المستخدم: {ex.Message}";
+        }
+    }
+
+    private RenderFragment GetRoleBadge(string role) => role switch
+    {
+        "admin" => @<span class="badge bg-danger">مدير</span>,
+        "senior_lawyer" => @<span class="badge bg-primary">محامي رئيسي</span>,
+        "junior_lawyer" => @<span class="badge bg-info">محامي مساعد</span>,
+        "legal_researcher" => @<span class="badge bg-success">باحث قانوني</span>,
+        "archiving" => @<span class="badge bg-secondary">أرشفة</span>,
+        "accountant" => @<span class="badge bg-warning">محاسب</span>,
+        "read_only" => @<span class="badge bg-dark">قراءة فقط</span>,
+        _ => @<span class="badge bg-secondary">@role</span>
+    };
+}
+

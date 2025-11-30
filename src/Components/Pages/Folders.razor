@@ -1,0 +1,152 @@
+@page "/folders"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IFolderService FolderService
+@inject NavigationManager Navigation
+
+<PageTitle>المجلدات</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>إدارة المجلدات</h2>
+        <button class="btn btn-primary" @onclick="ShowAddFolderModal">
+            <i class="bi bi-plus-circle me-2"></i>إضافة مجلد جديد
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2 text-muted">جاري التحميل...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                @if (folders.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>اسم المجلد</th>
+                                    <th>المسار</th>
+                                    <th>المجلد الأب</th>
+                                    <th>عدد المستندات</th>
+                                    <th>تاريخ الإنشاء</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var folder in folders)
+                                {
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-folder-fill text-warning me-2"></i>
+                                            @folder.FolderName
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">@folder.FolderPath</small>
+                                        </td>
+                                        <td>@(folder.Parent?.FolderName ?? "جذر")</td>
+                                        <td>
+                                            <span class="badge bg-secondary">@(folder.Documents?.Count ?? 0)</span>
+                                        </td>
+                                        <td>@folder.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => ViewFolder(folder.FolderId)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-warning me-1" @onclick="() => EditFolder(folder.FolderId)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteFolder(folder.FolderId)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-folder-x fs-1 d-block mb-2"></i>
+                        لا توجد مجلدات
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Folder> folders = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFolders();
+    }
+
+    private async Task LoadFolders()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            folders = await FolderService.GetAllFoldersAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء تحميل المجلدات: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddFolderModal()
+    {
+        Navigation.NavigateTo("/folders/add");
+    }
+
+    private void ViewFolder(int id)
+    {
+        Navigation.NavigateTo($"/folders/{id}");
+    }
+
+    private void EditFolder(int id)
+    {
+        Navigation.NavigateTo($"/folders/{id}/edit");
+    }
+
+    private async Task DeleteFolder(int id)
+    {
+        try
+        {
+            await FolderService.DeleteFolderAsync(id);
+            await LoadFolders();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"حدث خطأ أثناء حذف المجلد: {ex.Message}";
+        }
+    }
+}
+
