@@ -51,5 +51,10 @@ public interface IUserService
     /// Gets the lockout expiration time for a user account.
     /// </summary>
     Task<DateTime?> GetLockoutExpirationAsync(string username);
+
+    /// <summary>
+    /// Updates an existing user in the database.
+    /// </summary>
+    Task UpdateUserAsync(User user);
 }
 

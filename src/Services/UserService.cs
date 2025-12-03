@@ -208,5 +208,14 @@ public class UserService : IUserService
         var user = await GetUserByUsernameAsync(username);
         return user?.LockedUntil;
     }
+
+    /// <summary>
+    /// Updates an existing user in the database.
+    /// </summary>
+    public async Task UpdateUserAsync(User user)
+    {
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+    }
 }
 

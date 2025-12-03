@@ -9,9 +9,9 @@ namespace LegalDocSystem.Services;
 public interface IDocumentService
 {
     /// <summary>
-    /// Retrieves all documents from the database.
+    /// Retrieves all documents from the database with pagination.
     /// </summary>
-    Task<List<Document>> GetAllDocumentsAsync();
+    Task<(List<Document> Documents, int TotalCount)> GetAllDocumentsAsync(int page = 1, int pageSize = 20);
 
     /// <summary>
     /// Retrieves a document by its unique identifier.

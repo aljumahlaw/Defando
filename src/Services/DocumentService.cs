@@ -2,8 +2,10 @@ using LegalDocSystem.Data;
 using LegalDocSystem.Models;
 using LegalDocSystem.ViewModels;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Text.RegularExpressions;
+using Npgsql;
 
 namespace LegalDocSystem.Services;
 
@@ -16,29 +18,40 @@ public class DocumentService : IDocumentService
     private readonly IOcrService _ocrService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IAuditService _auditService;
+    private readonly ILogger<DocumentService> _logger;
 
     public DocumentService(
         ApplicationDbContext context, 
         IOcrService ocrService, 
         IFileStorageService fileStorageService,
-        IAuditService auditService)
+        IAuditService auditService,
+        ILogger<DocumentService> logger)
     {
         _context = context;
         _ocrService = ocrService;
         _fileStorageService = fileStorageService;
         _auditService = auditService;
+        _logger = logger;
     }
 
     /// <summary>
-    /// Retrieves all documents from the database.
+    /// Retrieves all documents from the database with pagination.
     /// </summary>
-    public async Task<List<Document>> GetAllDocumentsAsync()
+    public async Task<(List<Document> Documents, int TotalCount)> GetAllDocumentsAsync(int page = 1, int pageSize = 20)
     {
-        return await _context.Documents
+        var query = _context.Documents
             .Include(d => d.Folder)
             .Include(d => d.UploadedByUser)
-            .OrderByDescending(d => d.UploadedAt)
+            .OrderByDescending(d => d.UploadedAt);
+
+        var totalCount = await query.CountAsync();
+        
+        var documents = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        return (documents, totalCount);
     }
 
     /// <summary>
@@ -150,6 +163,7 @@ public class DocumentService : IDocumentService
                 catch (Exception ex)
                 {
                     // Log error but continue with database deletion
+                    _logger.LogWarning(ex, "Error deleting physical file for document {DocumentId} at {FilePath}", id, document.FilePath);
                     try
                     {
                         await _auditService.LogEventAsync(new AuditLogEntry
@@ -240,24 +254,35 @@ public class DocumentService : IDocumentService
         if (!string.IsNullOrWhiteSpace(query))
         {
             var searchTerms = PrepareSearchQuery(query);
-            if (!string.IsNullOrEmpty(searchTerms) && !string.IsNullOrEmpty(query))
+            if (!string.IsNullOrEmpty(searchTerms))
             {
-                // Use PostgreSQL Full-Text Search with search_vector
-                // We'll use raw SQL for better performance with ts_rank
+                // Use proper PostgreSQL Full-Text Search with search_vector
+                // PostgreSQL tsvector uses @@ operator: search_vector @@ to_tsquery('arabic', 'terms')
+                // Since EF Core doesn't support @@ operator directly, we use raw SQL with parameterized query
                 var searchQuery = query.Trim();
                 
-                // For now, use simple contains as fallback
-                // Full ts_rank implementation would require raw SQL
+                // Get document IDs that match full-text search using raw SQL
+                // Use parameterized query to prevent SQL injection
+                var searchParam = new NpgsqlParameter("@searchTerms", searchTerms);
+                var fullTextMatchIds = await _context.Set<Document>()
+                    .FromSqlRaw(
+                        @"SELECT * FROM documents 
+                          WHERE search_vector @@ to_tsquery('arabic', @searchTerms)",
+                        searchParam)
+                    .Select(d => d.DocumentId)
+                    .ToListAsync();
+                
+                // Combine simple text search with full-text search results
                 queryable = queryable.Where(d => 
                     d.DocumentName.Contains(searchQuery) ||
                     (d.DocumentType != null && d.DocumentType.Contains(searchQuery)) ||
-                    (d.SearchVector != null && d.SearchVector.Contains(searchQuery)) ||
-                    (d.Tags != null && d.Tags.Any(t => t.Contains(searchQuery)))
+                    (d.Tags != null && d.Tags.Any(t => t.Contains(searchQuery))) ||
+                    (fullTextMatchIds.Any() && fullTextMatchIds.Contains(d.DocumentId))
                 );
             }
             else
             {
-                // Fallback to simple contains
+                // Fallback to simple contains if search terms preparation failed
                 queryable = queryable.Where(d => 
                     d.DocumentName.Contains(query) ||
                     (d.DocumentType != null && d.DocumentType.Contains(query)));
@@ -518,6 +543,21 @@ public class DocumentService : IDocumentService
             _context.Documents.Add(document);
             await _context.SaveChangesAsync();
 
+            // Create initial version record
+            var initialVersion = new DocumentVersion
+            {
+                DocumentId = document.DocumentId,
+                VersionNumber = 1,
+                FilePath = filePath,
+                FileSize = fileSize,
+                ChangeDescription = "Initial upload",
+                CreatedBy = uploadedBy,
+                CreatedAt = DateTime.UtcNow,
+                IsFinal = false
+            };
+            _context.DocumentVersions.Add(initialVersion);
+            await _context.SaveChangesAsync();
+
             // Queue for OCR if it's a scanned image or PDF
             var ocrSupportedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".bmp" };
             if (ocrSupportedExtensions.Contains(Path.GetExtension(fileName).ToLower()) && _ocrService.IsOcrEnabled())
@@ -529,7 +569,7 @@ public class DocumentService : IDocumentService
                 catch (Exception ex)
                 {
                     // Log OCR queue error but don't fail the upload
-                    // TODO: Log error in AuditLog
+                    _logger.LogWarning(ex, "Failed to queue document {DocumentId} for OCR", document.DocumentId);
                 }
             }
 

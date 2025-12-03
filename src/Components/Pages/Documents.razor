@@ -126,6 +126,9 @@
     private string searchQuery = string.Empty;
     private bool isLoading = true;
     private string? errorMessage;
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,7 +142,9 @@
 
         try
         {
-            documents = await DocumentService.GetAllDocumentsAsync();
+            var result = await DocumentService.GetAllDocumentsAsync(currentPage, pageSize);
+            documents = result.Documents;
+            totalCount = result.TotalCount;
             ApplyFilter();
         }
         catch (Exception ex)

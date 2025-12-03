@@ -9,6 +9,7 @@ using LegalDocSystem.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http;
 
@@ -38,6 +39,14 @@ if (connectionString.Contains("Password=;") || connectionString.Contains("Passwo
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+// Add Health Checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        connectionString,
+        name: "database",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: new[] { "db", "postgres" });
+
 // Register Services
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IFolderService, FolderService>();
@@ -55,7 +64,22 @@ builder.Services.AddScoped<IIncomingService, IncomingService>();
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 // Add Session support for authentication
-builder.Services.AddDistributedMemoryCache();
+// Use Redis in production if configured, otherwise use in-memory cache for development
+var useRedis = builder.Configuration.GetValue<bool>("Session:UseRedis");
+
+if (useRedis)
+{
+    var redisConnection = builder.Configuration.GetConnectionString("Redis");
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -137,20 +161,8 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // Policy for login endpoint (stricter limits to prevent brute force)
-    options.AddPolicy("LoginPolicy", context =>
-    {
-        var ipAddress = context.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: $"login_{ipAddress}",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5, // Only 5 login attempts per minute per IP
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0 // No queuing for login attempts
-            });
-    });
+    // Note: Login rate limiting is handled by LoginRateLimitMiddleware
+    // No need for separate LoginPolicy here
 
     // Global fallback policy (for unauthenticated requests by IP)
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
@@ -216,13 +228,16 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
+// Session middleware (must be before Authentication if Authentication depends on Session)
+app.UseSession();
+
 // Rate Limiting middleware (must be after UseRouting and before UseAuthentication)
 app.UseRateLimiter();
 
 // Login Rate Limiting Middleware (before Authentication to catch login attempts)
 app.UseMiddleware<LoginRateLimitMiddleware>();
 
-// Authentication & Authorization middleware (must be after UseRouting and before UseSession)
+// Authentication & Authorization middleware (must be after UseRouting and UseSession)
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -232,8 +247,6 @@ app.UseAntiforgery();
 // Audit Logging Middleware (must be after Authentication and Authorization)
 app.UseMiddleware<AuditLoggingMiddleware>();
 
-app.UseSession();
-
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode()
    .RequireRateLimiting("AuthenticatedUserPolicy");
@@ -241,6 +254,10 @@ app.MapRazorComponents<App>()
 // Map API Controllers with rate limiting
 app.MapControllers()
    .RequireRateLimiting("AuthenticatedUserPolicy");
+
+// Health Check endpoint
+// This endpoint can be used by external monitoring tools (Prometheus, uptime checks, etc.)
+app.MapHealthChecks("/healthz");
 
 // Hangfire Dashboard (restricted to Admin users only)
 app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions

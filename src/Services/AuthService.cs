@@ -2,6 +2,7 @@ using LegalDocSystem.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using BCrypt.Net;
 
@@ -15,14 +16,20 @@ public class AuthService : IAuthService
     private readonly IUserService _userService;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IAuditService _auditService;
+    private readonly ILogger<AuthService> _logger;
     private const string UserIdSessionKey = "UserId";
     private const string UsernameSessionKey = "Username";
 
-    public AuthService(IUserService userService, IHttpContextAccessor httpContextAccessor, IAuditService auditService)
+    public AuthService(
+        IUserService userService, 
+        IHttpContextAccessor httpContextAccessor, 
+        IAuditService auditService,
+        ILogger<AuthService> logger)
     {
         _userService = userService;
         _httpContextAccessor = httpContextAccessor;
         _auditService = auditService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -101,15 +108,16 @@ public class AuthService : IAuthService
 
             // Update last_login timestamp in database
             user.LastLogin = DateTime.UtcNow;
-            await _userService.GetUserByIdAsync(user.UserId); // Refresh user data if needed
+            await _userService.UpdateUserAsync(user); // Save the LastLogin change
 
             // Log successful login
             await LogSuccessfulLoginAsync(user.UserId, user.Username);
 
             return user;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error while logging in user {Username}", username);
             return null;
         }
     }
@@ -122,25 +130,25 @@ public class AuthService : IAuthService
         var httpContext = _httpContextAccessor.HttpContext;
         if (httpContext != null)
         {
+            // Get user info BEFORE clearing session
+            var session = httpContext.Session;
+            var userId = GetCurrentUserId();
+            var username = session?.GetString(UsernameSessionKey);
+
             // Sign out from Cookie Authentication
             await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-            // Clear session
-            var session = httpContext.Session;
+            // Clear session AFTER reading user info
             if (session != null)
             {
                 session.Clear();
             }
-        }
 
-        // Get user info before clearing session
-        var userId = GetCurrentUserId();
-        var username = _httpContextAccessor.HttpContext?.Session?.GetString(UsernameSessionKey);
-
-        // Log logout
-        if (userId.HasValue && !string.IsNullOrEmpty(username))
-        {
-            await LogLogoutAsync(userId.Value, username);
+            // Log logout (using data read before clearing)
+            if (userId.HasValue && !string.IsNullOrEmpty(username))
+            {
+                await LogLogoutAsync(userId.Value, username);
+            }
         }
 
         await Task.CompletedTask;

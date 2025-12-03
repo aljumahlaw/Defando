@@ -28,6 +28,9 @@
     <!-- MailKit for Email -->
     <PackageReference Include="MailKit" Version="4.3.0" />
     
+    <!-- Health Checks -->
+    <PackageReference Include="AspNetCore.HealthChecks.Npgsql" Version="8.0.0" />
+    
     <!-- Tesseract OCR (TODO: Uncomment when ready to use) -->
     <!-- <PackageReference Include="Tesseract" Version="5.2.0" /> -->
   </ItemGroup>
