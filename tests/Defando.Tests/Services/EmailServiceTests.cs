@@ -1,13 +1,13 @@
 using FluentAssertions;
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
+using Defando.Data;
+using Defando.Models;
+using Defando.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Services;
+namespace Defando.Tests.Services;
 
 /// <summary>
 /// Unit tests for EmailService.

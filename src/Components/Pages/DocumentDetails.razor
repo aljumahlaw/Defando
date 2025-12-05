@@ -1,5 +1,4 @@
 @page "/documents/{id:int}"
-@rendermode InteractiveServer
 @attribute [Authorize]
 @inject IDocumentService DocumentService
 @inject IFileStorageService FileStorageService
@@ -12,7 +11,7 @@
 
 <div class="container-fluid" dir="rtl">
     <div class="mb-3">
-        <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo(\"/documents\")">
+        <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/documents"))">
             <i class="bi bi-arrow-right me-2"></i>العودة للمستندات
         </button>
     </div>

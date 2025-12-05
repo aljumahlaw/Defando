@@ -1,5 +1,4 @@
 @page "/settings"
-@rendermode InteractiveServer
 @attribute [Authorize]
 @inject IAuthService AuthService
 
@@ -64,7 +63,7 @@
                         </div>
 
                         <div class="d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-secondary" @onclick="ResetForm">
+                            <button type="button" class="btn btn-secondary" @onclick="@(() => ResetForm())">
                                 إلغاء
                             </button>
                             <button type="submit" class="btn btn-primary" disabled="@isSaving">
@@ -123,10 +122,6 @@
     {
         var currentUser = await AuthService.GetCurrentUserAsync();
         isAdmin = currentUser?.Role == "admin";
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
         await LoadSettings();
     }
 

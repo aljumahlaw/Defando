@@ -1,6 +1,6 @@
-using LegalDocSystem.Models;
+using Defando.Models;
 
-namespace LegalDocSystem.ViewModels;
+namespace Defando.ViewModels;
 
 /// <summary>
 /// Represents a search result with ranking and highlighted text.

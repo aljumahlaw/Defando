@@ -1,6 +1,6 @@
-using LegalDocSystem.Models;
+using Defando.Models;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service interface for folder management operations.

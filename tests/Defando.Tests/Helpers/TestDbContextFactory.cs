@@ -1,8 +1,8 @@
-using LegalDocSystem.Data;
+using Defando.Data;
 using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
 
-namespace LegalDocSystem.Tests.Helpers;
+namespace Defando.Tests.Helpers;
 
 /// <summary>
 /// Factory for creating In-Memory DbContext instances for testing.
@@ -41,7 +41,7 @@ public static class TestDbContextFactory
     public static void SeedTestData(ApplicationDbContext context)
     {
         // Add test users
-        var testUser = new LegalDocSystem.Models.User
+        var testUser = new Defando.Models.User
         {
             UserId = 1,
             Username = "testuser",
@@ -53,7 +53,7 @@ public static class TestDbContextFactory
             CreatedAt = DateTime.UtcNow
         };
 
-        var adminUser = new LegalDocSystem.Models.User
+        var adminUser = new Defando.Models.User
         {
             UserId = 2,
             Username = "admin",

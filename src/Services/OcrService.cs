@@ -1,10 +1,11 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
+using Defando.Data;
+using Defando.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for OCR operations using Tesseract.
@@ -16,6 +17,7 @@ public class OcrService : IOcrService
     private readonly ILogger<OcrService> _logger;
     private readonly string _tesseractPath;
     private readonly string _language;
+    private readonly bool _isWindows;
 
     public OcrService(
         ApplicationDbContext context,
@@ -25,8 +27,18 @@ public class OcrService : IOcrService
         _context = context;
         _configuration = configuration;
         _logger = logger;
+        _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
-        _tesseractPath = _configuration["Ocr:TesseractPath"] ?? "C:\\Program Files\\Tesseract-OCR";
+        // Default paths based on OS
+        if (_isWindows)
+        {
+            _tesseractPath = _configuration["Ocr:TesseractPath"] ?? "C:\\Program Files\\Tesseract-OCR";
+        }
+        else
+        {
+            _tesseractPath = _configuration["Ocr:TesseractPath"] ?? "/usr/bin";
+        }
+        
         _language = _configuration["Ocr:Language"] ?? "ara+eng";
     }
 
@@ -47,8 +59,15 @@ public class OcrService : IOcrService
 
         try
         {
-            var tesseractExe = Path.Combine(_tesseractPath, "tesseract.exe");
-            if (!File.Exists(tesseractExe))
+            // Determine Tesseract executable name based on OS
+            var tesseractExe = _isWindows 
+                ? Path.Combine(_tesseractPath, "tesseract.exe")
+                : Path.Combine(_tesseractPath, "tesseract");
+            
+
+            
+            // Check if executable exists (skip check for Linux if using system PATH)
+            if (_isWindows && !File.Exists(tesseractExe))
             {
                 throw new FileNotFoundException($"Tesseract executable not found: {tesseractExe}");
             }
@@ -187,7 +206,7 @@ public class OcrService : IOcrService
 
                     // Get file path from NAS storage using file_guid
                     // TODO: Implement file retrieval from NAS storage
-                    var filePath = GetFilePathFromGuid(document.FileGuid);
+                    var filePath = GetFilePathFromGuid(document.FileGuid.ToString());
 
                     if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                     {
@@ -264,7 +283,41 @@ public class OcrService : IOcrService
         if (!enabled)
             return false;
 
-        var tesseractExe = Path.Combine(_tesseractPath, "tesseract.exe");
+        // Determine Tesseract executable name based on OS
+        var tesseractExe = _isWindows 
+            ? Path.Combine(_tesseractPath, "tesseract.exe")
+            : Path.Combine(_tesseractPath, "tesseract");
+        
+        // For Linux, if path is /usr/bin, check system PATH
+        if (!_isWindows && _tesseractPath == "/usr/bin")
+        {
+            try
+            {
+                // Try to run tesseract --version to check if it's available
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "tesseract",
+                    Arguments = "--version",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+                
+                using var process = Process.Start(processInfo);
+                if (process != null)
+                {
+                    process.WaitForExit();
+                    return process.ExitCode == 0;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
         return File.Exists(tesseractExe);
     }
 

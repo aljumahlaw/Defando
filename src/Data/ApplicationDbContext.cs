@@ -1,7 +1,7 @@
-using LegalDocSystem.Models;
+using Defando.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace LegalDocSystem.Data;
+namespace Defando.Data;
 
 /// <summary>
 /// Entity Framework Core context configuring the legal document schema.
@@ -24,6 +24,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
     public DbSet<OcrQueue> OcrQueueItems => Set<OcrQueue>();
+    public DbSet<OcrQueue> OcrQueue { get; set; } = null!;
     public DbSet<SharedLink> SharedLinks => Set<SharedLink>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<LinkAccessLog> LinkAccessLogs => Set<LinkAccessLog>();

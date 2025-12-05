@@ -1,16 +1,16 @@
 using FluentAssertions;
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
-using LegalDocSystem.Tests.Helpers;
-using LegalDocSystem.ViewModels;
+using Defando.Data;
+using Defando.Models;
+using Defando.Services;
+using Defando.Tests.Helpers;
+using Defando.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using System.Text;
 using System.Text.Json;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Services;
+namespace Defando.Tests.Services;
 
 /// <summary>
 /// Unit tests for DocumentService.

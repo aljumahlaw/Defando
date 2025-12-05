@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace LegalDocSystem.Models;
+namespace Defando.Models;
 
 /// <summary>
 /// Represents a task assigned within the legal team.

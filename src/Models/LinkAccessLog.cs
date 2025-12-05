@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace LegalDocSystem.Models;
+namespace Defando.Models;
 
 /// <summary>
 /// Represents an access event for a shared link.

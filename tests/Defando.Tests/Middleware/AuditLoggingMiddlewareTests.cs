@@ -1,7 +1,7 @@
 using FluentAssertions;
-using LegalDocSystem.Middleware;
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
+using Defando.Middleware;
+using Defando.Models;
+using Defando.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,7 +10,7 @@ using System.Security.Claims;
 using System.Text;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Middleware;
+namespace Defando.Tests.Middleware;
 
 /// <summary>
 /// Unit tests for AuditLoggingMiddleware.
@@ -846,5 +846,7 @@ public class AuditLoggingMiddlewareTests
 
     #endregion
 }
+
+
 
 

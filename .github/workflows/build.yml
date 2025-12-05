@@ -1,0 +1,81 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  POSTGRES_DB: LegalDocDb
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Install Tesseract OCR
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-ara tesseract-ocr-eng
+      
+      - name: Verify Tesseract
+        run: |
+          tesseract --version
+          tesseract --list-langs
+      
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Restore dependencies
+        working-directory: src
+        run: dotnet restore
+      
+      - name: Build
+        working-directory: src
+        run: dotnet build --no-restore -c Release
+        env:
+          LEGALDOC_DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          ConnectionStrings__DefaultConnection: "Host=${{ env.POSTGRES_HOST }};Port=${{ env.POSTGRES_PORT }};Database=${{ env.POSTGRES_DB }};Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }};"
+          Ocr__TesseractPath: "/usr/bin"
+          Ocr__Enabled: "true"
+          FileStorage__BasePath: "/tmp/legal-dms/files"
+      
+      - name: Publish
+        working-directory: src
+        run: dotnet publish -c Release -o ./publish
+        env:
+          LEGALDOC_DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}

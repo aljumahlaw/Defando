@@ -1,6 +1,7 @@
 @page "/outgoing"
-@rendermode InteractiveServer
+@using Defando.Models
 @attribute [Authorize]
+@using Defando.Extensions
 @inject IOutgoingService OutgoingService
 @inject IDocumentService DocumentService
 @inject IAuthService AuthService
@@ -206,31 +207,31 @@
 
                                 <div class="col-md-6">
                                     <label for="deliveryMethod" class="form-label">طريقة التسليم</label>
-                                    <InputText id="deliveryMethod" class="form-control" @bind-Value="outgoingModel.DeliveryMethod" placeholder="مثال: بريد، إيميل، يدوي" />
+                                    <InputText id="deliveryMethod" class="form-control" @bind-Value="outgoingModel.DeliveryMethod" />
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label for="trackingNumber" class="form-label">رقم التتبع</label>
+                                    <label for="trackingNumber" class="form-label">رقم التتبع (إن وجد)</label>
                                     <InputText id="trackingNumber" class="form-control" @bind-Value="outgoingModel.TrackingNumber" />
                                 </div>
 
                                 <div class="col-md-12">
-                                    <label for="documentId" class="form-label">ربط مستند</label>
-                                    <select id="documentId" class="form-select" @bind="outgoingModel.DocumentId">
-                                        <option value="">-- اختر مستند --</option>
+                                    <label for="documentId" class="form-label">المستند المرتبط (اختياري)</label>
+                                    <InputSelect id="documentId" class="form-select" @bind-Value="outgoingModel.DocumentId">
+                                        <option value="">اختر مستند...</option>
                                         @if (documents != null)
                                         {
                                             @foreach (var doc in documents)
                                             {
-                                                <option value="@doc.DocumentId">@doc.DocumentName</option>
+                                                <option value="@doc.DocumentId">@doc.DocumentName (@doc.DocumentId)</option>
                                             }
                                         }
-                                    </select>
+                                    </InputSelect>
                                 </div>
 
                                 <div class="col-md-12">
                                     <label for="notes" class="form-label">ملاحظات</label>
-                                    <InputTextArea id="notes" class="form-control" rows="3" @bind-Value="outgoingModel.Notes" />
+                                    <InputTextArea id="notes" class="form-control" @bind-Value="outgoingModel.Notes" rows="3" />
                                 </div>
                             </div>
 
@@ -239,9 +240,14 @@
                                 <button type="submit" class="btn btn-primary" disabled="@isSaving">
                                     @if (isSaving)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <span>جاري الحفظ...</span>
                                     }
-                                    @(isEditMode ? "تحديث" : "حفظ")
+                                    else
+                                    {
+                                        <i class="bi bi-save me-2"></i>
+                                        <span>حفظ</span>
+                                    }
                                 </button>
                             </div>
                         </EditForm>
@@ -258,72 +264,55 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">تفاصيل الصادر</h5>
+                        <h5 class="modal-title">تفاصيل الصادر رقم: @selectedOutgoing.OutgoingNumber</h5>
                         <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <strong>رقم الصادر:</strong>
-                                <p>@selectedOutgoing.OutgoingNumber</p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>تاريخ الإرسال:</strong>
-                                <p>@selectedOutgoing.SendDate.ToString("yyyy-MM-dd")</p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>الجهة المرسل إليها:</strong>
-                                <p>@selectedOutgoing.RecipientName</p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>عنوان الجهة:</strong>
-                                <p>@(selectedOutgoing.RecipientAddress ?? "-")</p>
-                            </div>
-                            <div class="col-md-12">
-                                <strong>الموضوع:</strong>
-                                <p>@selectedOutgoing.Subject</p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>طريقة التسليم:</strong>
-                                <p>@(selectedOutgoing.DeliveryMethod ?? "-")</p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>رقم التتبع:</strong>
-                                <p>@(selectedOutgoing.TrackingNumber ?? "-")</p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>المستند المرتبط:</strong>
-                                <p>
-                                    @if (selectedOutgoing.Document != null)
-                                    {
-                                        <a href="/documents/@selectedOutgoing.Document.DocumentId" class="text-decoration-none">
-                                            <i class="bi bi-file-earmark-text me-1"></i>@selectedOutgoing.Document.DocumentName
-                                        </a>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>أنشئ بواسطة:</strong>
-                                <p>@(selectedOutgoing.CreatedByUser?.FullName ?? "-")</p>
-                            </div>
-                            <div class="col-md-12">
-                                <strong>ملاحظات:</strong>
-                                <p>@(selectedOutgoing.Notes ?? "-")</p>
-                            </div>
-                        </div>
+                        <dl class="row">
+                            <dt class="col-sm-4">رقم الصادر:</dt>
+                            <dd class="col-sm-8">@selectedOutgoing.OutgoingNumber</dd>
+
+                            <dt class="col-sm-4">تاريخ الإرسال:</dt>
+                            <dd class="col-sm-8">@selectedOutgoing.SendDate.ToString("yyyy-MM-dd")</dd>
+
+                            <dt class="col-sm-4">الجهة المرسل إليها:</dt>
+                            <dd class="col-sm-8">@selectedOutgoing.RecipientName</dd>
+
+                            <dt class="col-sm-4">عنوان الجهة:</dt>
+                            <dd class="col-sm-8">@(selectedOutgoing.RecipientAddress ?? "-")</dd>
+
+                            <dt class="col-sm-4">الموضوع:</dt>
+                            <dd class="col-sm-8">@selectedOutgoing.Subject</dd>
+
+                            <dt class="col-sm-4">طريقة التسليم:</dt>
+                            <dd class="col-sm-8">@(selectedOutgoing.DeliveryMethod ?? "-")</dd>
+
+                            <dt class="col-sm-4">رقم التتبع:</dt>
+                            <dd class="col-sm-8">@(selectedOutgoing.TrackingNumber ?? "-")</dd>
+
+                            <dt class="col-sm-4">المستند المرتبط:</dt>
+                            <dd class="col-sm-8">
+                                @if (selectedOutgoing.Document != null)
+                                {
+                                    <a href="/documents/@selectedOutgoing.Document.DocumentId" class="text-decoration-none">
+                                        <i class="bi bi-file-earmark-text me-1"></i>@selectedOutgoing.Document.DocumentName
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-4">الملاحظات:</dt>
+                            <dd class="col-sm-8">@(selectedOutgoing.Notes ?? "-")</dd>
+
+                            <dt class="col-sm-4">أنشئ بواسطة:</dt>
+                            <dd class="col-sm-8">@selectedOutgoing.CreatedBy</dd>
+                        </dl>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">إغلاق</button>
-                        @if (canEdit)
-                        {
-                            <button type="button" class="btn btn-primary" @onclick="() => { CloseDetailsModal(); ShowEditModal(selectedOutgoing.OutgoingId); }">
-                                <i class="bi bi-pencil me-2"></i>تعديل
-                            </button>
-                        }
                     </div>
                 </div>
             </div>
@@ -332,16 +321,21 @@
 </div>
 
 @code {
-    private List<Outgoing>? outgoingList;
-    private List<Document>? documents;
+    private List<Defando.Models.Outgoing>? outgoingList;
+    private List<Defando.Models.Document>? documents;
     private bool isLoading = true;
     private string? errorMessage;
     private bool showModal = false;
     private bool showDetailsModal = false;
     private bool isEditMode = false;
     private bool isSaving = false;
-    private Outgoing? selectedOutgoing;
-    private OutgoingModel outgoingModel = new();
+    private OutgoingModel outgoingModel = new OutgoingModel();
+    private Defando.Models.Outgoing? selectedOutgoing;
+
+    // Permissions
+    private bool canCreate = false;
+    private bool canEdit = false;
+    private bool canDelete = false;
 
     // Filters
     private DateTime? filterStartDate;
@@ -349,39 +343,21 @@
     private string? filterRecipient;
     private string? filterDeliveryMethod;
 
-    // Permissions
-    private bool canCreate = false;
-    private bool canEdit = false;
-    private bool canDelete = false;
-
     protected override async Task OnInitializedAsync()
     {
-        await CheckPermissions();
-        await LoadDocuments();
+        await LoadPermissions();
         await LoadOutgoing();
+        await LoadDocuments();
     }
 
-    private async Task CheckPermissions()
+    private async Task LoadPermissions()
     {
-        var currentUser = await AuthService.GetCurrentUserAsync();
-        if (currentUser != null)
+        var user = await AuthService.GetCurrentUserAsync();
+        if (user != null)
         {
-            var role = currentUser.Role.ToLower();
-            canCreate = role == "admin" || role == "senior_lawyer" || role == "archiving";
-            canEdit = role == "admin" || role == "senior_lawyer" || role == "archiving";
-            canDelete = role == "admin" || role == "senior_lawyer";
-        }
-    }
-
-    private async Task LoadDocuments()
-    {
-        try
-        {
-            documents = await DocumentService.GetAllDocumentsAsync();
-        }
-        catch (Exception ex)
-        {
-            // Log error silently or use NotificationService if needed
+            canCreate = user.HasPermission("Outgoing.Create");
+            canEdit = user.HasPermission("Outgoing.Edit");
+            canDelete = user.HasPermission("Outgoing.Delete");
         }
     }
 
@@ -389,26 +365,14 @@
     {
         isLoading = true;
         errorMessage = null;
-
         try
         {
-            if (HasActiveFilters())
-            {
-                outgoingList = await OutgoingService.SearchOutgoingAsync(
-                    startDate: filterStartDate,
-                    endDate: filterEndDate,
-                    recipientName: filterRecipient,
-                    deliveryMethod: filterDeliveryMethod);
-            }
-            else
-            {
-                outgoingList = await OutgoingService.GetAllOutgoingAsync();
-            }
+            outgoingList = await OutgoingService.GetAllOutgoingAsync();
+            ApplyFilters(); // Apply initial filters (which are null/empty)
         }
         catch (Exception ex)
         {
-            errorMessage = $"حدث خطأ أثناء تحميل البيانات: {ex.Message}";
-            NotificationService.ShowError(errorMessage);
+            errorMessage = $"فشل في تحميل المراسلات الصادرة: {ex.Message}";
         }
         finally
         {
@@ -416,16 +380,46 @@
         }
     }
 
-    private bool HasActiveFilters()
+    private async Task LoadDocuments()
     {
-        return filterStartDate.HasValue || filterEndDate.HasValue ||
-               !string.IsNullOrWhiteSpace(filterRecipient) ||
-               !string.IsNullOrWhiteSpace(filterDeliveryMethod);
+        try
+        {
+            var result = await DocumentService.GetAllDocumentsAsync();
+            documents = result.Documents;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"فشل في تحميل قائمة المستندات: {ex.Message}");
+        }
     }
 
-    private async Task ApplyFilters()
+    private void ApplyFilters()
     {
-        await LoadOutgoing();
+        if (outgoingList == null) return;
+
+        var filteredList = outgoingList.AsEnumerable();
+
+        if (filterStartDate.HasValue)
+        {
+            filteredList = filteredList.Where(o => o.SendDate.Date >= filterStartDate.Value.Date);
+        }
+
+        if (filterEndDate.HasValue)
+        {
+            filteredList = filteredList.Where(o => o.SendDate.Date <= filterEndDate.Value.Date);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterRecipient))
+        {
+            filteredList = filteredList.Where(o => o.RecipientName.Contains(filterRecipient, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterDeliveryMethod))
+        {
+            filteredList = filteredList.Where(o => o.DeliveryMethod != null && o.DeliveryMethod.Contains(filterDeliveryMethod, StringComparison.OrdinalIgnoreCase));
+        }
+
+        outgoingList = filteredList.ToList();
     }
 
     private async Task ClearFilters()
@@ -434,27 +428,33 @@
         filterEndDate = null;
         filterRecipient = null;
         filterDeliveryMethod = null;
-        await LoadOutgoing();
+        await LoadOutgoing(); // Reload to get the original list
     }
 
     private void ShowAddModal()
     {
-        isEditMode = false;
-        outgoingModel = new OutgoingModel
+        if (!canCreate)
         {
-            SendDate = DateTime.Now.Date
-        };
+            NotificationService.ShowError("ليس لديك صلاحية للإضافة");
+            return;
+        }
+        outgoingModel = new OutgoingModel();
+        isEditMode = false;
         showModal = true;
     }
 
     private async Task ShowEditModal(int id)
     {
+        if (!canEdit)
+        {
+            NotificationService.ShowError("ليس لديك صلاحية للتعديل");
+            return;
+        }
         try
         {
             var outgoing = await OutgoingService.GetOutgoingByIdAsync(id);
             if (outgoing != null)
             {
-                isEditMode = true;
                 outgoingModel = new OutgoingModel
                 {
                     OutgoingId = outgoing.OutgoingId,
@@ -468,16 +468,13 @@
                     DocumentId = outgoing.DocumentId,
                     Notes = outgoing.Notes
                 };
+                isEditMode = true;
                 showModal = true;
-            }
-            else
-            {
-                NotificationService.ShowError("لم يتم العثور على السجل");
             }
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError($"حدث خطأ: {ex.Message}");
+            NotificationService.ShowError($"فشل في تحميل بيانات الصادر: {ex.Message}");
         }
     }
 
@@ -490,14 +487,10 @@
             {
                 showDetailsModal = true;
             }
-            else
-            {
-                NotificationService.ShowError("لم يتم العثور على السجل");
-            }
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError($"حدث خطأ: {ex.Message}");
+            NotificationService.ShowError($"فشل في تحميل تفاصيل الصادر: {ex.Message}");
         }
     }
 
@@ -526,7 +519,7 @@
                 return;
             }
 
-            var outgoing = new Outgoing
+            var outgoing = new Defando.Models.Outgoing
             {
                 OutgoingId = outgoingModel.OutgoingId,
                 OutgoingNumber = outgoingModel.OutgoingNumber,
@@ -623,4 +616,3 @@
 
     [Inject] private IJSRuntime? JSRuntime { get; set; }
 }
-

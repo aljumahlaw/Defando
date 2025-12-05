@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace LegalDocSystem.Models;
+namespace Defando.Models;
 
 /// <summary>
 /// Represents an audit log entry with detailed information about an action.

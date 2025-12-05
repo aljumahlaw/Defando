@@ -1,4 +1,4 @@
-using LegalDocSystem.Models;
+using Defando.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using BCrypt.Net;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for authentication and authorization operations.

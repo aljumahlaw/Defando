@@ -1,11 +1,11 @@
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
-using LegalDocSystem.Components;
-using LegalDocSystem.Data;
-using LegalDocSystem.Helpers;
-using LegalDocSystem.Middleware;
-using LegalDocSystem.Services;
+using Defando.Components;
+using Defando.Data;
+using Defando.Helpers;
+using Defando.Middleware;
+using Defando.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -67,13 +67,17 @@ builder.Services.AddSingleton<INotificationService, NotificationService>();
 // Use Redis in production if configured, otherwise use in-memory cache for development
 var useRedis = builder.Configuration.GetValue<bool>("Session:UseRedis");
 
+// Redis cache (commented until configured)
+// builder.Services.AddStackExchangeRedisCache(options =>
+//     options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+
 if (useRedis)
 {
     var redisConnection = builder.Configuration.GetConnectionString("Redis");
-    builder.Services.AddStackExchangeRedisCache(options =>
-    {
-        options.Configuration = redisConnection;
-    });
+    //builder.Services.AddStackExchangeRedisCache(options =>
+    //{
+    //    options.Configuration = redisConnection;
+    //});
 }
 else
 {
@@ -98,7 +102,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "LegalDocSystem.Auth";
+        options.Cookie.Name = "Defando.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = builder.Environment.IsProduction() 
             ? CookieSecurePolicy.Always 
@@ -211,17 +215,18 @@ builder.Services.AddScoped<IBackgroundJobsService, BackgroundJobsService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddHsts(options =>
+{
+    options.Preload = true;
+    options.MaxAge = TimeSpan.FromDays(365);
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    app.UseHsts(options =>
-    {
-        options.MaxAge = TimeSpan.FromDays(365); // 1 year
-        options.IncludeSubDomains = true;
-        options.Preload = true;
-    });
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();

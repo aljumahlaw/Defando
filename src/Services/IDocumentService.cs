@@ -1,7 +1,7 @@
-using LegalDocSystem.Models;
-using LegalDocSystem.ViewModels;
+using Defando.Models;
+using Defando.ViewModels;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service interface for document management operations.

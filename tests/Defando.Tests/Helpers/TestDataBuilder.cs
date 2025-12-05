@@ -1,7 +1,7 @@
-using LegalDocSystem.Models;
+using Defando.Models;
 using BCrypt.Net;
 
-namespace LegalDocSystem.Tests.Helpers;
+namespace Defando.Tests.Helpers;
 
 /// <summary>
 /// Builder pattern for creating test data entities.

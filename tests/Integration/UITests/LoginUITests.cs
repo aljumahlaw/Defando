@@ -4,7 +4,7 @@ using OpenQA.Selenium.Support.UI;
 using System;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Integration.UITests;
+namespace Defando.Tests.Integration.UITests;
 
 /// <summary>
 /// UI Tests for Login page using Selenium WebDriver.

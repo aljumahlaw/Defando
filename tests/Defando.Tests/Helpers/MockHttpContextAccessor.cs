@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Moq;
 using System.Security.Claims;
 
-namespace LegalDocSystem.Tests.Helpers;
+namespace Defando.Tests.Helpers;
 
 /// <summary>
 /// Helper class for creating Mock IHttpContextAccessor instances for testing.

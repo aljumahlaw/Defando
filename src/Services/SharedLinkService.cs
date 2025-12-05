@@ -1,13 +1,13 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
+using Defando.Data;
+using Defando.Models;
+using Defando.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using BCrypt.Net;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for managing shared links.
@@ -237,7 +237,7 @@ public class SharedLinkService : ISharedLinkService
             // Send notification email to the link creator (if email notifications are enabled)
             try
             {
-                var link = await _context.SharedLinks
+                link = await _context.SharedLinks
                     .Include(l => l.Document)
                     .Include(l => l.CreatedByUser)
                     .FirstOrDefaultAsync(l => l.LinkId == linkId);

@@ -1,10 +1,10 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
+using Defando.Data;
+using Defando.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using BCrypt.Net;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for user management operations.

@@ -1,4 +1,4 @@
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service interface for background jobs using Hangfire.

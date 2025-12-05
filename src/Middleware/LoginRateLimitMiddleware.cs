@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using System.Threading.RateLimiting;
 
-namespace LegalDocSystem.Middleware;
+namespace Defando.Middleware;
 
 /// <summary>
 /// Middleware to apply rate limiting specifically to login endpoint.

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for file storage operations.
@@ -331,10 +331,15 @@ public class FileStorageService : IFileStorageService
     /// <summary>
     /// Validates file extension against allowed extensions.
     /// </summary>
-    public bool IsExtensionAllowed(string fileName)
+    public bool IsExtensionAllowed(string extension)
     {
-        var extension = Path.GetExtension(fileName).ToLower();
-        return _allowedExtensions.Contains(extension);
+        // Normalize extension: ensure it starts with a dot and is lowercase
+        var normalizedExtension = extension.Trim().ToLower();
+        if (!normalizedExtension.StartsWith("."))
+        {
+            normalizedExtension = "." + normalizedExtension;
+        }
+        return _allowedExtensions.Contains(normalizedExtension);
     }
 
     /// <summary>

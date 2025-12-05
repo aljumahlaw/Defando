@@ -1,9 +1,9 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
+using Defando.Data;
+using Defando.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for managing incoming correspondence records.

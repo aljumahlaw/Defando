@@ -1,5 +1,4 @@
 @page "/folders"
-@rendermode InteractiveServer
 @attribute [Authorize]
 @inject IFolderService FolderService
 @inject NavigationManager Navigation
@@ -58,7 +57,7 @@
                                         <td>
                                             <small class="text-muted">@folder.FolderPath</small>
                                         </td>
-                                        <td>@(folder.Parent?.FolderName ?? "جذر")</td>
+                                        <td>@(folder.ParentFolder?.FolderName ?? "جذر")</td>
                                         <td>
                                             <span class="badge bg-secondary">@(folder.Documents?.Count ?? 0)</span>
                                         </td>

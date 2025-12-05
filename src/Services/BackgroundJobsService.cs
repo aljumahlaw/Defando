@@ -1,13 +1,13 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Helpers;
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
+using Defando.Data;
+using Defando.Helpers;
+using Defando.Models;
+using Defando.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service for background jobs using Hangfire.
@@ -62,7 +62,7 @@ public class BackgroundJobsService : IBackgroundJobsService
                     await Task.Delay(1000);
 
                     item.Status = "completed";
-                    item.CompletedAt = DateTime.UtcNow;
+                    item.ProcessedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
                     _logger.LogInformation($"OCR processing completed for queue item {item.QueueId}");
@@ -115,11 +115,11 @@ public class BackgroundJobsService : IBackgroundJobsService
                         // Use email template for task reminder
                         var body = EmailTemplates.TaskReminder(
                             recipientName: task.AssignedToUser.FullName,
-                            taskTitle: task.Title,
+                            taskTitle: task.TaskTitle,
                             dueDate: task.DueDate.Value,
                             taskStatus: task.Status);
 
-                        var subject = $"تذكير: مهمة قريبة من الاستحقاق - {task.Title}";
+                        var subject = $"تذكير: مهمة قريبة من الاستحقاق - {task.TaskTitle}";
 
                         // Use SendEmailWithRetryAsync for better reliability
                         await emailService.SendEmailWithRetryAsync(
@@ -161,7 +161,7 @@ public class BackgroundJobsService : IBackgroundJobsService
             _logger.LogInformation("Starting expired links cleanup...");
 
             var expiredLinks = await _context.SharedLinks
-                .Where(l => l.ExpiresAt.HasValue && l.ExpiresAt.Value < DateTime.UtcNow)
+                .Where(l => l.ExpiresAt < DateTime.UtcNow)
                 .ToListAsync();
 
             foreach (var link in expiredLinks)

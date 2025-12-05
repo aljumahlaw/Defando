@@ -1,12 +1,12 @@
 using FluentAssertions;
-using LegalDocSystem.Services;
+using Defando.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Text;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Services;
+namespace Defando.Tests.Services;
 
 /// <summary>
 /// Unit tests for FileStorageService.
@@ -26,7 +26,7 @@ public class FileStorageServiceTests : IDisposable
         _mockLogger = new Mock<ILogger<FileStorageService>>();
 
         // Create a temporary directory for testing
-        _testBasePath = Path.Combine(Path.GetTempPath(), "LegalDocSystem_TestStorage", Guid.NewGuid().ToString());
+        _testBasePath = Path.Combine(Path.GetTempPath(), "Defando_TestStorage", Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testBasePath);
 
         // Setup Configuration Mock
@@ -596,5 +596,7 @@ public class FileStorageServiceTests : IDisposable
 
     #endregion
 }
+
+
 
 

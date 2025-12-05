@@ -1,9 +1,9 @@
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
+using Defando.Models;
+using Defando.Services;
 using System.Diagnostics;
 using System.Security.Claims;
 
-namespace LegalDocSystem.Middleware;
+namespace Defando.Middleware;
 
 /// <summary>
 /// Middleware for automatically logging all HTTP requests to the audit log.

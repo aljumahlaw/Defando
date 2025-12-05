@@ -1,4 +1,4 @@
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service interface for file storage operations.
@@ -34,5 +34,10 @@ public interface IFileStorageService
     /// Generates a unique file path based on GUID and date structure.
     /// </summary>
     string GenerateFilePath(string originalFileName);
+
+    /// <summary>
+    /// Checks if a file extension is allowed.
+    /// </summary>
+    bool IsExtensionAllowed(string extension);
 }
 

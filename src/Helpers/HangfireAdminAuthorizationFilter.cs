@@ -1,6 +1,6 @@
 using Hangfire.Dashboard;
 
-namespace LegalDocSystem.Helpers;
+namespace Defando.Helpers;
 
 /// <summary>
 /// Authorization filter for Hangfire Dashboard that restricts access to Admin users only.

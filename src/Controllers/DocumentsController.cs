@@ -1,9 +1,9 @@
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
+using Defando.Models;
+using Defando.Services;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LegalDocSystem.Controllers;
+namespace Defando.Controllers;
 
 /// <summary>
 /// API Controller for document management operations.

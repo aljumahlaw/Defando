@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
-namespace LegalDocSystem.Models;
+namespace Defando.Models;
 
 /// <summary>
 /// Represents a managed legal document with metadata and versions.
@@ -38,12 +38,16 @@ public class Document
     [Column("document_name")]
     public string DocumentName { get; set; } = string.Empty;
 
+    public string FileName { get; set; } = string.Empty;
+
     /// <summary>
     /// Document classification (contract, memo, etc.).
     /// </summary>
     [MaxLength(50)]
     [Column("document_type")]
     public string? DocumentType { get; set; }
+
+    public string Status { get; set; } = "Draft"; // Draft, Final, Archived
 
     /// <summary>
     /// Globally unique identifier used for physical storage.
@@ -116,6 +120,10 @@ public class Document
     /// </summary>
     [Column("uploaded_at")]
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
     /// Tags used for quick filtering.

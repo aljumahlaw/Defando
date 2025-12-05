@@ -1,5 +1,4 @@
 @page "/shared-links"
-@rendermode InteractiveServer
 @attribute [Authorize(Roles = "admin")]
 @inject ISharedLinkService SharedLinkService
 @inject IAuthService AuthService
@@ -45,7 +44,7 @@
                     <h2>
                         <i class="bi bi-link-45deg me-2"></i>إدارة الروابط المشتركة
                     </h2>
-                    <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo(\"/documents\")">
+                    <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/documents"))">
                         <i class="bi bi-arrow-right me-2"></i>العودة للمستندات
                     </button>
                 </div>
@@ -65,8 +64,7 @@
                             id="searchDocumentName"
                             class="form-control" 
                             @bind="searchDocumentName" 
-                            @bind:event="oninput"
-                            @oninput="OnSearchChanged"
+                            @bind:after="OnSearchChanged"
                             placeholder="أدخل اسم المستند..."
                             aria-label="بحث في اسم المستند" />
                     </div>
@@ -106,7 +104,7 @@
                     <div class="col-md-2 d-flex align-items-end">
                         <button 
                             class="btn btn-outline-secondary w-100" 
-                            @onclick="ClearFilters"
+                            @onclick="@(() => ClearFilters())"
                             aria-label="مسح الفلاتر">
                             <i class="bi bi-x-circle me-1"></i>مسح
                         </button>
@@ -129,7 +127,7 @@
         {
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
-                <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="إغلاق"></button>
+                <button type="button" class="btn-close" @onclick="@(() => errorMessage = null)" aria-label="إغلاق"></button>
             </div>
         }
         else
@@ -235,7 +233,7 @@
                                                     {
                                                         <button 
                                                             class="btn btn-sm btn-warning" 
-                                                            @onclick="() => ShowDeactivateModal(link)"
+                                                            @onclick="@(() => ShowDeactivateModal(link))"
                                                             title="تعطيل الرابط"
                                                             aria-label="تعطيل الرابط">
                                                             <i class="bi bi-pause-circle"></i>
@@ -243,14 +241,14 @@
                                                     }
                                                     <button 
                                                         class="btn btn-sm btn-danger" 
-                                                        @onclick="() => ShowDeleteModal(link)"
+                                                        @onclick="@(() => ShowDeleteModal(link))"
                                                         title="حذف الرابط"
                                                         aria-label="حذف الرابط">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                     <button 
                                                         class="btn btn-sm btn-info" 
-                                                        @onclick="() => CopyLink(link)"
+                                                        @onclick="@(() => CopyLink(link))"
                                                         title="نسخ الرابط"
                                                         aria-label="نسخ الرابط">
                                                         <i class="bi bi-clipboard"></i>
@@ -271,7 +269,7 @@
                             @if (!string.IsNullOrEmpty(searchDocumentName) || !string.IsNullOrEmpty(filterStatus) || !string.IsNullOrEmpty(filterExpiration))
                             {
                                 <p class="small text-muted">جرب تغيير معايير البحث</p>
-                                <button class="btn btn-outline-primary mt-2" @onclick="ClearFilters">
+                                <button class="btn btn-outline-primary mt-2" @onclick="@(() => ClearFilters())">
                                     <i class="bi bi-x-circle me-1"></i>مسح الفلاتر
                                 </button>
                             }
@@ -286,7 +284,7 @@
         {
             <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
                 <i class="bi bi-check-circle me-2"></i>@successMessage
-                <button type="button" class="btn-close" @onclick="() => successMessage = null" aria-label="إغلاق"></button>
+                <button type="button" class="btn-close" @onclick="@(() => successMessage = null)" aria-label="إغلاق"></button>
             </div>
         }
     }
@@ -299,7 +297,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">تأكيد تعطيل الرابط</h5>
-                        <button type="button" class="btn-close" @onclick="HideDeactivateModal" aria-label="إغلاق"></button>
+                        <button type="button" class="btn-close" @onclick="@(() => HideDeactivateModal())" aria-label="إغلاق"></button>
                     </div>
                     <div class="modal-body">
                         <p>هل أنت متأكد من تعطيل هذا الرابط؟</p>
@@ -314,8 +312,8 @@
                         <p class="text-muted small">بعد التعطيل، لن يتمكن المستخدمون من الوصول إلى المستند عبر هذا الرابط.</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="HideDeactivateModal">إلغاء</button>
-                        <button type="button" class="btn btn-warning" @onclick="ConfirmDeactivate" disabled="@isProcessing">
+                        <button type="button" class="btn btn-secondary" @onclick="@(() => HideDeactivateModal())">إلغاء</button>
+                        <button type="button" class="btn btn-warning" @onclick="@(() => ConfirmDeactivate())" disabled="@isProcessing">
                             @if (isProcessing)
                             {
                                 <span class="spinner-border spinner-border-sm me-2"></span>
@@ -336,7 +334,7 @@
                 <div class="modal-content">
                     <div class="modal-header bg-danger text-white">
                         <h5 class="modal-title">تأكيد حذف الرابط</h5>
-                        <button type="button" class="btn-close btn-close-white" @onclick="HideDeleteModal" aria-label="إغلاق"></button>
+                        <button type="button" class="btn-close btn-close-white" @onclick="@(() => HideDeleteModal())" aria-label="إغلاق"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-danger">
@@ -355,8 +353,8 @@
                         <p class="text-muted small">سيتم حذف الرابط وجميع سجلات الوصول المرتبطة به.</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="HideDeleteModal">إلغاء</button>
-                        <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isProcessing">
+                        <button type="button" class="btn btn-secondary" @onclick="@(() => HideDeleteModal())">إلغاء</button>
+                        <button type="button" class="btn btn-danger" @onclick="@(() => ConfirmDelete())" disabled="@isProcessing">
                             @if (isProcessing)
                             {
                                 <span class="spinner-border spinner-border-sm me-2"></span>
@@ -422,7 +420,7 @@
 
     private void ApplyFilters()
     {
-        filteredLinks = allLinks.AsQueryable();
+        filteredLinks = allLinks.AsQueryable().ToList();
 
         // Filter by document name
         if (!string.IsNullOrWhiteSpace(searchDocumentName))

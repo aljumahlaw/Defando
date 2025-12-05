@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\LegalDocSystem.csproj" />
+    <ProjectReference Include="..\..\src\Defando.csproj" />
   </ItemGroup>
 
   <ItemGroup>

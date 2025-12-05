@@ -1,10 +1,10 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
+using Defando.Data;
+using Defando.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for audit logging operations.

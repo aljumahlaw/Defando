@@ -1,15 +1,15 @@
 using FluentAssertions;
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
-using LegalDocSystem.Services;
-using LegalDocSystem.Tests.Helpers;
+using Defando.Data;
+using Defando.Models;
+using Defando.Services;
+using Defando.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using System.Security.Claims;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Services;
+namespace Defando.Tests.Services;
 
 /// <summary>
 /// Unit tests for AuditService.

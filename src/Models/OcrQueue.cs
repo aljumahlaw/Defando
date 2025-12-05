@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace LegalDocSystem.Models;
+namespace Defando.Models;
 
 /// <summary>
 /// Represents an OCR processing queue entry.
@@ -53,5 +53,9 @@ public class OcrQueue
     /// </summary>
     [Column("processed_at")]
     public DateTime? ProcessedAt { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public string? OcrText { get; set; }
 }
 

@@ -1,8 +1,8 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
+using Defando.Data;
+using Defando.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for folder management operations.

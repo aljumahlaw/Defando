@@ -1,5 +1,4 @@
 @page "/documents/{documentId:int}/share"
-@rendermode InteractiveServer
 @attribute [Authorize]
 @inject ISharedLinkService SharedLinkService
 @inject IDocumentService DocumentService
@@ -42,7 +41,7 @@
                 <h2>
                     <i class="bi bi-link-45deg me-2"></i>إنشاء رابط مشاركة
                 </h2>
-                <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo($\"/documents/{DocumentId}\")">
+                <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo($"/documents/{DocumentId}"))">
                     <i class="bi bi-arrow-right me-2"></i>العودة للمستند
                 </button>
             </div>
@@ -174,7 +173,7 @@
                                     <button 
                                         type="button" 
                                         class="btn btn-outline-secondary" 
-                                        @onclick="() => Navigation.NavigateTo($\"/documents/{DocumentId}\")"
+                                        @onclick="@(() => Navigation.NavigateTo($"/documents/{DocumentId}"))"
                                         aria-label="إلغاء">
                                         إلغاء
                                     </button>
@@ -196,7 +195,7 @@
                                         <span class="flex-grow-1" id="linkText">@fullLink</span>
                                         <button 
                                             class="btn btn-sm btn-outline-primary copy-button" 
-                                            @onclick="CopyToClipboard"
+                                            @onclick="@(() => CopyToClipboard())"
                                             title="نسخ الرابط"
                                             aria-label="نسخ الرابط">
                                             <i class="bi bi-clipboard"></i>
@@ -229,19 +228,19 @@
                                 <div class="d-flex gap-2 justify-content-center mt-4">
                                     <button 
                                         class="btn btn-primary" 
-                                        @onclick="CopyToClipboard"
+                                        @onclick="@(() => CopyToClipboard())"
                                         aria-label="نسخ الرابط">
                                         <i class="bi bi-clipboard me-2"></i>نسخ الرابط
                                     </button>
                                     <button 
                                         class="btn btn-outline-secondary" 
-                                        @onclick="CreateNewLink"
+                                        @onclick="@(() => CreateNewLink())"
                                         aria-label="إنشاء رابط جديد">
                                         <i class="bi bi-plus-circle me-2"></i>إنشاء رابط جديد
                                     </button>
                                     <button 
                                         class="btn btn-outline-secondary" 
-                                        @onclick="() => Navigation.NavigateTo($\"/documents/{DocumentId}\")"
+                                        @onclick="@(() => Navigation.NavigateTo($"/documents/{DocumentId}"))"
                                         aria-label="العودة للمستند">
                                         <i class="bi bi-arrow-right me-2"></i>العودة
                                     </button>

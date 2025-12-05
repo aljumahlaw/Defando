@@ -3,7 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for encryption and decryption using Windows DPAPI (Data Protection API).
@@ -120,7 +120,7 @@ public class EncryptionService : IEncryptionService
             if (OperatingSystem.IsWindows())
             {
                 // Try LocalMachine first (for production), then CurrentUser (for development/legacy)
-                DataProtectionScope scope;
+                DataProtectionScope scope = DataProtectionScope.CurrentUser;
                 try
                 {
                     scope = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production"
@@ -194,7 +194,7 @@ public class EncryptionService : IEncryptionService
             {
                 // Fallback: Generate a machine-specific key from the machine name
                 // This is less secure but provides backward compatibility
-                string machineKey = Environment.MachineName + "LegalDocSystem2025";
+                string machineKey = Environment.MachineName + "Defando2025";
                 using (var sha256 = SHA256.Create())
                 {
                     aes.Key = sha256.ComputeHash(Encoding.UTF8.GetBytes(machineKey));
@@ -235,7 +235,7 @@ public class EncryptionService : IEncryptionService
             else
             {
                 // Fallback: Generate the same machine-specific key
-                string machineKey = Environment.MachineName + "LegalDocSystem2025";
+                string machineKey = Environment.MachineName + "Defando2025";
                 using (var sha256 = SHA256.Create())
                 {
                     aes.Key = sha256.ComputeHash(Encoding.UTF8.GetBytes(machineKey));

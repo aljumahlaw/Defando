@@ -1,4 +1,4 @@
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Interface for encryption and decryption services.

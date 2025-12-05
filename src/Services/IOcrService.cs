@@ -1,4 +1,4 @@
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service interface for OCR (Optical Character Recognition) operations.

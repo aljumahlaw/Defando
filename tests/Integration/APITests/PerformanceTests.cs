@@ -5,7 +5,7 @@ using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace LegalDocSystem.Tests.Integration.APITests;
+namespace Defando.Tests.Integration.APITests;
 
 /// <summary>
 /// Performance tests for API endpoints.

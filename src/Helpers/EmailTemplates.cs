@@ -1,4 +1,4 @@
-namespace LegalDocSystem.Helpers;
+namespace Defando.Helpers;
 
 /// <summary>
 /// Email templates for system notifications.

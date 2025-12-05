@@ -1,13 +1,13 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Helpers;
-using LegalDocSystem.Models;
+using Defando.Data;
+using Defando.Helpers;
+using Defando.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for sending emails via SMTP using MailKit.

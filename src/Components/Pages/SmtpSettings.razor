@@ -1,6 +1,6 @@
 @page "/settings/smtp"
-@rendermode InteractiveServer
 @attribute [Authorize(Roles = "admin")]
+@using Defando.Models
 @inject IEmailService EmailService
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
@@ -48,7 +48,7 @@
                 <h2>
                     <i class="bi bi-envelope-at me-2"></i>إعدادات SMTP
                 </h2>
-                <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo(\"/settings\")">
+                <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/settings"))">
                     <i class="bi bi-arrow-right me-2"></i>العودة للإعدادات
                 </button>
             </div>
@@ -399,7 +399,7 @@
 </div>
 
 @code {
-    private SmtpSettings smtpSettings = new();
+    private Defando.Models.SmtpSettings smtpSettings = new();
     private bool isSaving = false;
     private bool isTesting = false;
     private bool isAuthorized = false;

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for displaying toast notifications in Blazor UI.

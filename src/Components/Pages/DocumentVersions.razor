@@ -1,5 +1,4 @@
 @page "/documents/{id:int}/versions"
-@rendermode InteractiveServer
 @attribute [Authorize]
 @inject IDocumentService DocumentService
 @inject IAuthService AuthService
@@ -11,7 +10,7 @@
 
 <div class="container-fluid" dir="rtl">
     <div class="mb-3">
-        <button class="btn btn-secondary" @onclick="() => Navigation.NavigateTo($\"/documents/{Id}\")">
+        <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo($"/documents/{Id}"))">
             <i class="bi bi-arrow-right me-2"></i>العودة لتفاصيل المستند
         </button>
     </div>
@@ -81,7 +80,7 @@
                 <div>
                     @if (!document.IsLocked)
                     {
-                        <button class="btn btn-sm btn-warning" @onclick="() => Navigation.NavigateTo($\"/documents/{Id}\")">
+                        <button class="btn btn-sm btn-warning" @onclick="@(() => Navigation.NavigateTo($"/documents/{Id}"))">
                             <i class="bi bi-lock me-1"></i>قفل المستند (Check-out)
                         </button>
                     }

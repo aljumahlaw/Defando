@@ -1,5 +1,5 @@
 @page "/incoming"
-@rendermode InteractiveServer
+@using Defando.Models
 @attribute [Authorize]
 @inject IIncomingService IncomingService
 @inject IDocumentService DocumentService
@@ -382,7 +382,7 @@
 </div>
 
 @code {
-    private List<Incoming>? incomingList;
+    private List<Defando.Models.Incoming>? incomingList;
     private List<Document>? documents;
     private bool isLoading = true;
     private string? errorMessage;
@@ -390,7 +390,7 @@
     private bool showDetailsModal = false;
     private bool isEditMode = false;
     private bool isSaving = false;
-    private Incoming? selectedIncoming;
+    private Defando.Models.Incoming? selectedIncoming;
     private IncomingModel incomingModel = new();
 
     // Filters
@@ -427,7 +427,8 @@
     {
         try
         {
-            documents = await DocumentService.GetAllDocumentsAsync();
+            var result = await DocumentService.GetAllDocumentsAsync();
+            documents = result.Documents;
         }
         catch (Exception ex)
         {
@@ -579,7 +580,7 @@
                 return;
             }
 
-            var incoming = new Incoming
+            var incoming = new Defando.Models.Incoming
             {
                 IncomingId = incomingModel.IncomingId,
                 IncomingNumber = incomingModel.IncomingNumber,

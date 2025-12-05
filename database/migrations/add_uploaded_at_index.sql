@@ -13,3 +13,6 @@ CREATE INDEX IF NOT EXISTS idx_documents_uploaded_at ON documents(uploaded_at DE
 
 COMMIT;
 
+
+
+

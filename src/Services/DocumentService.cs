@@ -1,13 +1,13 @@
-using LegalDocSystem.Data;
-using LegalDocSystem.Models;
-using LegalDocSystem.ViewModels;
+using Defando.Data;
+using Defando.Models;
+using Defando.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Text.RegularExpressions;
 using Npgsql;
 
-namespace LegalDocSystem.Services;
+namespace Defando.Services;
 
 /// <summary>
 /// Service implementation for document management operations.
@@ -510,7 +510,7 @@ public class DocumentService : IDocumentService
         try
         {
             // Validate file extension
-            if (!_fileStorageService.IsExtensionAllowed(fileName))
+            if (!_fileStorageService.IsExtensionAllowed(Path.GetExtension(fileName)))
             {
                 throw new InvalidOperationException($"File extension is not allowed: {Path.GetExtension(fileName)}");
             }
